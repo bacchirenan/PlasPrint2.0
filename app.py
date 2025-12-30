@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import json, base64, os, re, requests, io
+import json, base64, os, re, requests, io, sqlite3, glob
 import gspread
 from google.oauth2.service_account import Credentials
 from google import genai
@@ -192,11 +192,12 @@ div[data-testid="stFileUploader"] svg,
 div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] {{
     display: none !important;
 }}
-div[data-testid="stFileUploader"] button {{
+/* APENAS o botão principal de upload (dentro da section) deve ter largura total e estilo customizado */
+div[data-testid="stFileUploader"] section button {{
     font-family: 'CustomFont', sans-serif !important;
     width: 100% !important;
     min-width: 100% !important;
-    margin: 10px 0 0 0 !important; /* Pequeno espaçamento do chat_input */
+    margin: 10px 0 0 0 !important;
     height: 48px !important;
     background-color: rgba(255, 255, 255, 0.1) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -209,14 +210,16 @@ div[data-testid="stFileUploader"] button {{
     pointer-events: auto !important;
     cursor: pointer !important;
 }}
-div[data-testid="stFileUploader"] button::before {{
+
+/* Texto do botão principal */
+div[data-testid="stFileUploader"] section button::before {{
+    display: flex !important;
     content: "Enviar Imagem" !important;
     position: absolute !important;
     width: 100% !important;
     height: 100% !important;
     left: 0 !important;
     top: 0 !important;
-    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     color: white !important;
@@ -224,7 +227,25 @@ div[data-testid="stFileUploader"] button::before {{
     font-weight: bold !important;
     font-family: 'CustomFont', sans-serif !important;
     pointer-events: none !important;
-    text-align: center !important;
+}}
+
+/* MATAR QUALQUER RASTRO EM OUTROS BOTÕES (Excluir, etc) */
+div[data-testid="stFileUploader"] button:not(section button),
+div[data-testid="stFileUploaderDeleteBtn"],
+div[data-testid="stFileUploaderFileData"] button,
+button[aria-label="Remove image"] {{
+    width: auto !important;
+    min-width: 0 !important;
+    background-color: transparent !important;
+    border: none !important;
+}}
+
+div[data-testid="stFileUploader"] button:not(section button)::before,
+div[data-testid="stFileUploader"] button:not(section button)::after,
+div[data-testid="stFileUploaderDeleteBtn"]::before,
+div[data-testid="stFileUploaderFileData"] button::before {{
+    content: none !important;
+    display: none !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -258,12 +279,39 @@ def read_ws(name):
         st.warning(f"Aba '{name}' não pôde ser carregada: {e}")
         return pd.DataFrame()
 
+@st.cache_data
+def read_sqlite(table_name):
+    try:
+        conn = sqlite3.connect('fichas_tecnicas.db')
+        df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Erro ao ler banco de dados local ({table_name}): {e}")
+        return pd.DataFrame()
+
+@st.cache_data
+def read_xlsx():
+    try:
+        # Busca por qualquer arquivo .xlsx na pasta raiz (ou pasta 'producao' se preferir)
+        xlsx_files = glob.glob("*.xlsx")
+        if not xlsx_files:
+            return pd.DataFrame()
+        # Pega o mais recente
+        latest_file = max(xlsx_files, key=os.path.getmtime)
+        df = pd.read_excel(latest_file)
+        return df
+    except Exception as e:
+        # Se falhar por falta de openpyxl, pandas avisará
+        return pd.DataFrame()
+
 def refresh_data():
     st.session_state.erros_df = read_ws("erros")
-    st.session_state.trabalhos_df = read_ws("trabalhos")
+    st.session_state.trabalhos_df = read_sqlite("fichas")  # Migrado para SQLite local
     st.session_state.dacen_df = read_ws("dacen")
     st.session_state.psi_df = read_ws("psi")
     st.session_state.gerais_df = read_ws("gerais")
+    st.session_state.producao_df = read_xlsx() # Novos dados de produção
 
 if "erros_df" not in st.session_state:
     refresh_data()
@@ -274,6 +322,7 @@ st.sidebar.write("trabalhos:", len(st.session_state.trabalhos_df))
 st.sidebar.write("dacen:", len(st.session_state.dacen_df))
 st.sidebar.write("psi:", len(st.session_state.psi_df))
 st.sidebar.write("gerais:", len(st.session_state.gerais_df))
+st.sidebar.write("produção (Excel):", len(st.session_state.producao_df))
 
 if st.sidebar.button("Atualizar planilha"):
     refresh_data()
@@ -354,7 +403,8 @@ with col_meio:
                     "trabalhos": st.session_state.trabalhos_df,
                     "dacen": st.session_state.dacen_df,
                     "psi": st.session_state.psi_df,
-                    "gerais": st.session_state.gerais_df
+                    "gerais": st.session_state.gerais_df,
+                    "producao": st.session_state.producao_df
                 }
                 context = build_context(dfs)
                 
@@ -364,8 +414,8 @@ with col_meio:
                 Responda em português brasileiro de forma estritamente técnica e direta.
                 **NUNCA use saudações, introduções ou frases como "Olá", "Como assistente técnico", ou "posso confirmar que".**
                 Vá direto ao ponto e forneça a solução ou análise técnica imediatamente.
-                Baseie-se principalmente nos dados das planilhas fornecidas.
-                Se uma imagem for enviada, analise-a em busca de defeitos de impressão ou painéis de máquina e cruze com os dados.
+                Baseie-se principalmente nos dados das planilhas fornecidas e nos dados de produção (Excel).
+                Se uma imagem for enviada, analise-a em busca de defeitos de impressão ou painéis de máquina e cruze com os dados técnicos e de produção.
                 Se não souber a resposta baseada nos dados, sugira procurar o suporte técnico sênior.
                 Regras:
                 - Proibido introduções, saudações ou frases de cortesia.
@@ -379,9 +429,9 @@ with col_meio:
                     full_prompt.append(image_to_send)
 
                 try:
-                    # Usando gemini-flash-latest para garantir compatibilidade com a cota gratuita
+                    # Usando gemini-1.5-flash para garantir maior cota no plano gratuito
                     resp = client.models.generate_content(
-                        model="gemini-flash-latest", 
+                        model="gemini-1.5-flash", 
                         contents=full_prompt,
                         config={"system_instruction": system_instruction}
                     )
