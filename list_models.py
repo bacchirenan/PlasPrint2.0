@@ -11,6 +11,6 @@ client = genai.Client(api_key=api_key)
 try:
     print("Modelos disponíveis:")
     for model in client.models.list():
-        print(f"Name: {model.name}, Supported Methods: {model.supported_variants}")
+        print(f"Name: {model.name}")
 except Exception as e:
     print(f"Erro ao listar modelos: {e}")
