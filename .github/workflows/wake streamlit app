@@ -1,0 +1,16 @@
+name: Wake Streamlit App
+
+on:
+  schedule:
+    # A cada 10 minutos
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake Streamlit
+        run: |
+          echo "Waking Streamlit App..."
+          curl -I https://plasprint20.streamlit.app/
