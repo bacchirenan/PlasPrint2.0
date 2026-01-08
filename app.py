@@ -13,6 +13,38 @@ import plotly.express as px
 # ===== Configuração da página =====
 st.set_page_config(page_title="PlasPrint IA", page_icon="favicon.ico", layout="wide")
 
+def init_db():
+    try:
+        conn = sqlite3.connect('fichas_tecnicas.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS custos_tintas (
+                cor TEXT PRIMARY KEY,
+                preco_litro REAL,
+                preco_litro_usd REAL,
+                data_atualizacao TEXT
+            )
+        ''')
+        # Populate initial data if empty
+        cursor.execute("SELECT count(*) FROM custos_tintas")
+        if cursor.fetchone()[0] == 0:
+            initial_data = [
+                ('cyan', 250.0, 45.0), ('magenta', 250.0, 45.0), ('yellow', 250.0, 45.0),
+                ('black', 250.0, 45.0), ('white', 300.0, 55.0), ('varnish', 180.0, 35.0)
+            ]
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            for cor, brl, usd in initial_data:
+                cursor.execute("INSERT INTO custos_tintas VALUES (?, ?, ?, ?)", (cor, brl, usd, now))
+            conn.commit()
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fichas_referencia ON fichas(referencia)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fichas_produto ON fichas(produto)")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Erro ao inicializar banco de dados: {e}")
+
+init_db()
+
 # ===== Funções auxiliares =====
 def get_usd_brl_rate():
     if "usd_brl_cache" in st.session_state:
@@ -126,7 +158,7 @@ def format_dollar_values(text, rate):
         converted = val * float(rate)
         brl = to_brazilian(converted)
         # Escapamos o $ com \ para evitar que o Streamlit interprete como LaTeX (que muda a fonte e esconde o $)
-        return f"{orig.replace('$', r'\$')} (R\$ {brl})"
+        return f"{orig.replace('$', r'\$')} (R\\$ {brl})"
 
     formatted = money_regex.sub(repl, text)
 
@@ -148,17 +180,33 @@ def process_response(texto):
             return texto
     return texto
 
-def get_ink_prices():
+@st.cache_data(ttl=600)
+def get_ink_data():
     try:
         conn = sqlite3.connect('fichas_tecnicas.db')
-        df = pd.read_sql_query("SELECT cor, preco_litro FROM custos_tintas", conn)
+        # Tenta pegar coluna usd também, se não existir (v1 do banco) retorna só brl
+        try:
+            df = pd.read_sql_query("SELECT cor, preco_litro, preco_litro_usd FROM custos_tintas", conn)
+        except:
+            df = pd.read_sql_query("SELECT cor, preco_litro FROM custos_tintas", conn)
+            df['preco_litro_usd'] = 0.0
+            
         conn.close()
-        return dict(zip(df['cor'], df['preco_litro']))
+        return df.set_index('cor').to_dict('index')
     except:
         return {
-            'cyan': 250.0, 'magenta': 250.0, 'yellow': 250.0, 
-            'black': 250.0, 'white': 300.0, 'varnish': 180.0
+            'cyan': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+            'magenta': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+            'yellow': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+            'black': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+            'white': {'preco_litro': 300.0, 'preco_litro_usd': 55.0}, 
+            'varnish': {'preco_litro': 180.0, 'preco_litro_usd': 35.0}
         }
+        
+def get_ink_prices():
+    # Helper antigo para compatibilidade
+    data = get_ink_data()
+    return {k: v['preco_litro'] for k, v in data.items()}
 
 def inject_favicon():
     try:
@@ -198,15 +246,74 @@ st.markdown(f"""
     font-family: 'SamsungSharpSans';
     src: url(data:font/ttf;base64,{font_base64}) format('truetype');
 }}
+
+/* Aplicar fonte ABSOLUTAMENTE em tudo: textos, números, métricas e tabelas */
 * {{
     font-family: 'SamsungSharpSans', sans-serif !important;
 }}
-/* Esconder botão de colapso da sidebar e ícones de sistema que vazam como texto */
-[data-testid="stSidebarCollapseButton"], 
-.st-emotion-cache-1it3434, 
-span[data-testid="stIconMaterial"] {{
-    display: none !important;
+
+/* Garantir que métricas e dataframes (tabelas) herdem corretamente */
+[data-testid="stMetricValue"], 
+[data-testid="stTable"], 
+[data-testid="stDataFrame"],
+.stMarkdown, 
+div {{
+    font-family: 'SamsungSharpSans', sans-serif !important;
 }}
+
+/* RESTAURAR ÍCONES: Impedir que a fonte customizada sobrescreva os glifos/ligaduras */
+[data-testid="stIconMaterial"], 
+.material-icons,
+.material-symbols-outlined,
+i {{
+    font-family: 'Material Symbols Outlined', 'Material Icons', 'serif' !important;
+}}
+
+/* Correção RADICAL para o texto 'keyboard_double_arrow_right' no cabeçalho */
+header[data-testid="stHeader"] button {{
+    font-size: 0 !important;
+    color: transparent !important;
+    overflow: hidden !important;
+}}
+
+header[data-testid="stHeader"] button * {{
+    font-size: 0 !important;
+    color: transparent !important;
+    display: none !important;
+    visibility: hidden !important;
+}}
+
+/* Recriar o ícone da sidebar (seta/menu) de forma limpa */
+[data-testid="stSidebarCollapseButton"]::after {{
+    content: "〉" !important;
+    visibility: visible !important;
+    font-size: 22px !important;
+    color: white !important;
+    display: block !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    font-family: sans-serif !important;
+    pointer-events: none !important;
+}}
+
+/* Estilo do botão em si */
+[data-testid="stSidebarCollapseButton"] {{
+    background-color: transparent !important;
+    border: none !important;
+    width: 40px !important;
+    height: 40px !important;
+    position: relative !important;
+}}
+
+/* Garante que o botão de Deploy e Menu (direita) não sumam texto se necessário, 
+   mas como o 'Deploy' costuma ser um span específico, vamos isolá-los */
+header[data-testid="stHeader"] [data-testid="stHeaderActionElements"] button {{
+    font-size: 14px !important; /* Restaura tamanho para botões da direita */
+    color: white !important;
+}}
+
 h1.custom-font {{
     text-align: center;
     font-size: 380%;
@@ -317,9 +424,58 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     content: none !important;
     display: none !important;
 }}
+
+/* Posicionamento e Estilo do Botão de Configurações (Engrenagem) */
+.fixed-settings {{
+    position: fixed !important;
+    top: 15px !important;
+    right: 15px !important;
+    z-index: 999999 !important;
+}}
+
+/* Alvo direto em qualquer botão dentro do container fixo */
+.fixed-settings button {{
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    color: transparent !important; /* Esconde o emoji original */
+}}
+
+/* Esconder a seta e qualquer SVG */
+.fixed-settings button svg {{
+    display: none !important;
+}}
+
+/* Reinjetar a engrenagem pequena e discreta */
+.fixed-settings button::before {{
+    content: "⚙️";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: white !important;
+    opacity: 0.3;
+    font-size: 14px !important; /* Tamanho reduzido */
+    visibility: visible !important;
+    pointer-events: none;
+}}
+
+.fixed-settings button:hover::before {{
+    opacity: 1.0;
+}}
+
+/* Garantir que o container do popover não tenha bordas no estado fechado */
+div[data-testid="stPopover"] {{
+    border: none !important;
+}}
 </style>
 """, unsafe_allow_html=True)
-
 # Estilos customizados para progress bars e feedback visual
 st.markdown("""
 <style>
@@ -443,7 +599,7 @@ def read_sqlite(table_name):
         st.error(f"Erro ao ler banco de dados local ({table_name}): {e}")
         return pd.DataFrame()
 
-@st.cache_data
+@st.cache_data(ttl=600)
 def read_xlsx():
     try:
         # Busca por qualquer arquivo .xlsx na pasta raiz (ou pasta 'producao' se preferir)
@@ -456,6 +612,82 @@ def read_xlsx():
         return df
     except Exception as e:
         # Se falhar por falta de openpyxl, pandas avisará
+        return pd.DataFrame()
+
+@st.cache_data(ttl=3600)
+def read_oee():
+    try:
+        if not os.path.exists("oee teep.xlsx"):
+            return pd.DataFrame()
+        
+        # Leitura inicial
+        df = pd.read_excel("oee teep.xlsx")
+        
+        # Mapeamento de colunas baseado na inspeção
+        rename_map = {
+            'Unnamed: 1': 'Maquina',
+            'Unnamed: 2': 'Data',
+            'Unnamed: 7': 'Disponibilidade',
+            'Unnamed: 8': 'Performance',
+            'Unnamed: 9': 'Qualidade',
+            'Unnamed: 11': 'OEE'
+        }
+        df = df.rename(columns=rename_map)
+        
+        # Selecionar apenas colunas úteis
+        cols = list(rename_map.values())
+        df = df[cols]
+        
+        # Limpeza
+        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', dayfirst=True)
+        df = df.dropna(subset=['Data', 'Maquina'])
+        
+        # Converter métricas de percentual para float
+        def clean_pct(x):
+            if isinstance(x, str):
+                return float(x.replace('%', '').replace(',', '.').strip()) / 100
+            return x
+            
+        for col in ['OEE', 'Disponibilidade', 'Performance', 'Qualidade']:
+            df[col] = df[col].apply(clean_pct)
+            
+        return df
+    except Exception as e:
+        st.error(f"Erro ao ler OEE: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=3600)
+def read_rejeito():
+    try:
+        if not os.path.exists("rejeito.xlsx"):
+            return pd.DataFrame()
+            
+        df = pd.read_excel("rejeito.xlsx")
+        
+        # Mapeamento
+        rename_map = {
+            'Unnamed: 1': 'Maquina',
+            'Unnamed: 2': 'Data',
+            'Registro': 'Motivo',
+            'Unnamed: 9': 'Produto',
+            'Unnamed: 13': 'QtdRejeitada'
+        }
+        df = df.rename(columns=rename_map)
+        
+        # Selecionar colunas, garantindo que elas existem
+        existing_cols = [c for c in rename_map.values() if c in df.columns]
+        df = df[existing_cols]
+        
+        # Limpeza
+        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', dayfirst=True)
+        df = df.dropna(subset=['Data', 'Produto'])
+        
+        # Converter qtd
+        df['QtdRejeitada'] = pd.to_numeric(df['QtdRejeitada'], errors='coerce').fillna(0)
+        
+        return df
+    except Exception as e:
+        st.error(f"Erro ao ler Rejeito: {e}")
         return pd.DataFrame()
 
 def refresh_data():
@@ -482,10 +714,15 @@ def refresh_data():
     status_text.text('Carregando dados gerais...')
     progress_bar.progress(0.75)
     st.session_state.gerais_df = read_ws("gerais")
-    
+
     status_text.text('Carregando dados de produção...')
     progress_bar.progress(0.85)
     st.session_state.producao_df = read_xlsx()
+
+    status_text.text('Carregando indicadores OEE/TEEP...')
+    progress_bar.progress(0.90)
+    st.session_state.oee_df = read_oee()
+    st.session_state.rejeito_df = read_rejeito()
     
     status_text.text('Calculando custos financeiros...')
     progress_bar.progress(0.95)
@@ -512,17 +749,144 @@ def refresh_data():
     progress_bar.empty()
     status_text.empty()
 
-if "erros_df" not in st.session_state:
+def paginate_dataframe(df, page_size=20, key_prefix="page"):
+    """Helper to paginate a dataframe in the UI"""
+    if len(df) <= page_size:
+        return df
+    
+    total_pages = (len(df) - 1) // page_size + 1
+    page_num = st.number_input(f"Página (de {total_pages})", min_value=1, max_value=total_pages, step=1, key=f"{key_prefix}_num")
+    
+    start_idx = (page_num - 1) * page_size
+    end_idx = start_idx + page_size
+    
+    st.write(f"Mostrando {start_idx + 1} a {min(end_idx, len(df))} de {len(df)} registros")
+    return df.iloc[start_idx:end_idx]
+
+def process_chat_request(prompt, dfs, image=None):
+    progress_container = st.empty()
+    status_container = st.empty()
+    
+    try:
+        with progress_container:
+            progress_bar = st.progress(0)
+        
+        with status_container:
+            st.info('Preparando contexto dos dados...')
+        progress_bar.progress(0.20)
+        
+        with status_container:
+            st.info('Processando dados das planilhas...')
+        progress_bar.progress(0.40)
+        context = build_context(dfs)
+        
+        # Instruções de sistema para o modelo
+        system_instruction = f'''
+        Você é o Assistente Técnico PlasPrint IA especializado em flexografia e impressão industrial.
+        Responda em português brasileiro de forma estritamente técnica e direta.
+        **NUNCA use saudações, introduções ou frases de cortesia.**
+        Vá direto ao ponto e forneça a solução ou análise técnica imediatamente.
+        Baseie-se nos dados das planilhas fornecidas e nos dados de produção (Excel).
+
+        FORMATO DE RESPOSTA:
+        - Use **Tabelas Markdown** para apresentar custos, consumos e parâmetros numéricos.
+        - Use **Títulos (##)** ou **Negrito** para separar seções (ex: Tempo de Processo, Custos).
+        - Use **Listas (bullet points)** para parâmetros técnicos.
+        - Mantenha um espaçamento claro entre parágrafos.
+        - **PROIBIDO**: Nunca mostre nomes técnicos de colunas do banco de dados (ex: `config_white`, `id`, `referencia`) entre parênteses ou em qualquer lugar da resposta. Use apenas o nome amigável.
+
+        UNIDADES DE MEDIDA - CONSUMO DE TINTA:
+        - **IMPORTANTE**: Os valores brutos nas planilhas (ex: 0.057) representam **ml (mililitros) por unidade (garrafa)**.
+        - **DIFERENCIAÇÃO VISUAL OBRIGATÓRIA**: Para evitar confusão, nunca mostre o mesmo número para unidade e milheiro.
+        - **Consumo Unitário**: Use o valor bruto (ex: 0.057) e a unidade **ml/garrafa**.
+        - **Consumo por Milheiro (1.000 un)**: Multiplique o valor bruto por 1.000 e use a unidade **ml/milheiro** (ex: 57 ml).
+
+        ANÁLISE FINANCEIRA E CUSTOS:
+        - **Moeda Brasileira**: Use SEMPRE o prefixo **R$** para custos calculados pelo sistema.
+        - **Moeda Americana**: Use o prefixo **$** APENAS se encontrar valores originalmente em dólar.
+        - Os preços base por litro são: {st.session_state.precos_tintas} (Valores em R$/L).
+        - Considere a margem de {st.session_state.get('margem_lucro', 40)}% sobre o custo unitário.
+
+        TRATAMENTO DE LINKS E MÍDIA:
+        - **ESTRUTURA OBRIGATÓRIA**: Para links de imagem, use exatamente: Link de Imagem: [URL].
+        - **REGRAS DE RESPOSTA**: Ao citar uma **referência**, você DEVE mostrar também a **decoração** correspondente.
+        - **LOCALIZAÇÃO**: Coloque o link imediatamente APÓS descrever o item.
+        - **REGRA DE OURO**: Sempre inclua os links das colunas IMAGEM e informações.
+
+        Se a pergunta for sobre OEE ou Eficiência:
+        - Analise os dados de Disponibilidade, Performance e Qualidade.
+        - Identifique gargalos e motivos de rejeição.
+
+        CONTEXTO DOS DADOS:
+        {context}
+        '''
+        
+        full_prompt = [prompt]
+        if image:
+            full_prompt.append(image)
+            with status_container:
+                st.info('Analisando imagem enviada...')
+        
+        # Sistema de retry para lidar com 429 RESOURCE_EXHAUSTED
+        max_retries = 5
+        retry_delay = 10 # segundos iniciais
+        resp = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Tenta usar o modelo Flash mais recente disponível
+                resp = client.models.generate_content(
+                    model="gemini-flash-latest", 
+                    contents=full_prompt,
+                    config={"system_instruction": system_instruction}
+                )
+                break # Sucesso, sai do loop
+            except Exception as e:
+                err_str = str(e).upper()
+                if "429" in err_str and attempt < max_retries - 1:
+                    # Se atingir o limite, esperamos o tempo de backoff
+                    with status_container:
+                        st.warning(f"Limite de uso temporário atingido. Aguardando {retry_delay}s para liberar... (Tentativa {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2 # Espera progressivamente mais
+                else:
+                    raise e # Erro fatal ou última tentativa falhou
+        
+        with status_container:
+            st.info('Formatando resposta...')
+        progress_bar.progress(0.90)
+
+        # Limpeza mínima: apenas links de imagem redundantes se houver
+        clean_text = re.sub(r'Links de imagens:?', '', resp.text, flags=re.IGNORECASE)
+        
+        # Limpar indicadores de progresso
+        progress_bar.progress(1.0)
+        time.sleep(0.3)
+        progress_container.empty()
+        status_container.empty()
+        
+        # Renderização Inteligente: Texto + Mídia intercalados
+        render_smart_response(clean_text)
+
+    except Exception as e:
+        if "progress_container" in locals() and progress_container: progress_container.empty()
+        if "status_container" in locals() and status_container: status_container.empty()
+        st.error(f"Erro ao processar: {e}")
+        st.warning('Dica: Tente reformular sua pergunta ou verifique sua conexão.')
+
+if any(k not in st.session_state for k in ["erros_df", "producao_df", "oee_df", "rejeito_df"]):
     with st.spinner('Carregando dados iniciais do sistema...'):
         refresh_data()
 
 st.sidebar.header("Dados carregados")
-st.sidebar.write("erros:", len(st.session_state.erros_df))
-st.sidebar.write("trabalhos:", len(st.session_state.trabalhos_df))
-st.sidebar.write("dacen:", len(st.session_state.dacen_df))
-st.sidebar.write("psi:", len(st.session_state.psi_df))
-st.sidebar.write("gerais:", len(st.session_state.gerais_df))
-st.sidebar.write("produção (Excel):", len(st.session_state.producao_df))
+st.sidebar.write("erros:", len(st.session_state.get("erros_df", [])))
+st.sidebar.write("trabalhos:", len(st.session_state.get("trabalhos_df", [])))
+st.sidebar.write("dacen:", len(st.session_state.get("dacen_df", [])))
+st.sidebar.write("psi:", len(st.session_state.get("psi_df", [])))
+st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
+st.sidebar.write("produção (Excel):", len(st.session_state.get("producao_df", [])))
+st.sidebar.write("OEE (Registros):", len(st.session_state.get("oee_df", [])))
+st.sidebar.write("Rejeitos (Registros):", len(st.session_state.get("rejeito_df", [])))
 
 if st.sidebar.button("Atualizar Dados"):
     with st.spinner('Atualizando dados...'):
@@ -531,39 +895,11 @@ if st.sidebar.button("Atualizar Dados"):
     time.sleep(0.5)
     st.rerun()
 
-# Sidebar: Gestão de Custos
-with st.sidebar.expander("💰 Gestão de Custos (R$/L)"):
-    if "precos_tintas" not in st.session_state:
-        st.session_state.precos_tintas = get_ink_prices()
-    
-    with st.form("form_custos"):
-        novos_precos = {}
-        for cor, preco in st.session_state.precos_tintas.items():
-            novos_precos[cor] = st.number_input(f"Preço {cor.capitalize()}", value=float(preco), step=5.0)
-        
-        margem_sugerida = st.slider("Margem de Lucro Sugerida (%)", 10, 200, 40)
-        
-        if st.form_submit_button("Salvar Preços"):
-            try:
-                conn = sqlite3.connect('fichas_tecnicas.db')
-                cursor = conn.cursor()
-                for cor, preco in novos_precos.items():
-                    cursor.execute("UPDATE custos_tintas SET preco_litro = ?, data_atualizacao = ? WHERE cor = ?", 
-                                   (preco, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), cor))
-                conn.commit()
-                conn.close()
-                st.session_state.precos_tintas = novos_precos
-                st.session_state.margem_lucro = margem_sugerida
-                st.success("Preços e margem salvos!")
-                refresh_data()
-                st.rerun()
-            except Exception as e:
-                st.error(f"Erro ao salvar: {e}")
 
 os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
 client = genai.Client()
 
-def build_context(dfs, max_chars=50000):
+def build_context(dfs, max_chars=30000):
     parts = []
     for name, df in dfs.items():
         if df.empty:
@@ -681,7 +1017,162 @@ col_esq, col_meio, col_dir = st.columns([1,3,1])
 with col_meio:
     st.markdown("<h1 class='custom-font'>PlasPrint IA</h1><br>", unsafe_allow_html=True)
 
-    tab_chat, tab_financeiro, tab_analitico = st.tabs(["Assistente IA", "Custo", "Analítico"])
+with col_dir:
+    # Configurações com Popover e Ícone de Engrenagem
+    st.markdown('<div class="fixed-settings">', unsafe_allow_html=True)
+    with st.popover("⚙️", help="Configurações de Custos (USD)"):
+
+        st.markdown("### 🛠️ Custos de Tintas (USD)")
+        
+        rate = get_usd_brl_rate()
+        if rate:
+            st.success(f"Dólar Hoje: R$ {rate:.4f}")
+        else:
+            st.warning("Não foi possível obter a cotação do dólar.")
+            rate = st.number_input("Taxa de Conversão Manual (R$)", value=5.50, min_value=1.0)
+
+        ink_data = get_ink_data()
+        
+        with st.form("settings_form"):
+            updates = {}
+            for cor in ['cyan', 'magenta', 'yellow', 'black', 'white', 'varnish']:
+                current_usd = ink_data.get(cor, {}).get('preco_litro_usd', 0.0)
+                # Fallback se usd for 0 mas tiver brl
+                if current_usd == 0 and ink_data.get(cor, {}).get('preco_litro', 0) > 0:
+                     current_usd = ink_data[cor]['preco_litro'] / rate
+                
+                updates[cor] = st.number_input(f"{cor.capitalize()} ($/L)", value=float(current_usd), step=1.0, format="%.2f")
+            
+            st.markdown("---")
+            st.markdown("### 📈 Margem")
+            current_margin = st.session_state.get('margem_lucro', 40)
+            margem = st.slider("Margem de Lucro (%)", 10, 200, current_margin)
+
+            st.markdown("---")
+            if st.form_submit_button("Salvar Configurações"):
+                try:
+                    conn = sqlite3.connect('fichas_tecnicas.db')
+                    cursor = conn.cursor()
+                    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    for cor, usd_price in updates.items():
+                        brl_price = usd_price * rate
+                        # Upsert logical equivalent
+                        cursor.execute("""
+                            INSERT INTO custos_tintas (cor, preco_litro, preco_litro_usd, data_atualizacao) 
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT(cor) DO UPDATE SET 
+                                preco_litro=excluded.preco_litro,
+                                preco_litro_usd=excluded.preco_litro_usd,
+                                data_atualizacao=excluded.data_atualizacao
+                        """, (cor, brl_price, usd_price, now))
+                        
+                    conn.commit()
+                    conn.close()
+                    st.session_state.precos_tintas = get_ink_prices() # Refresh session
+                    st.session_state.margem_lucro = margem
+                    st.success("Valores atualizados e convertidos!")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar: {e}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with col_meio:
+
+    tab_chat, tab_financeiro, tab_analitico, tab_eficiencia = st.tabs(["Assistente IA", "Custo", "Analítico", "Eficiência"])
+
+    with tab_eficiencia:
+        st.markdown("### Indicadores de Eficiência (OEE)")
+        
+        if "oee_df" in st.session_state and not st.session_state.oee_df.empty:
+            oee_df = st.session_state.oee_df
+            
+            # Filtros de data
+            min_date = oee_df['Data'].min()
+            max_date = oee_df['Data'].max()
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                date_range = st.date_input("Período", [min_date, max_date])
+            
+            # Aplicar filtro
+            if len(date_range) == 2:
+                mask = (oee_df['Data'].dt.date >= date_range[0]) & (oee_df['Data'].dt.date <= date_range[1])
+                filtered_oee = oee_df[mask]
+            else:
+                filtered_oee = oee_df
+            
+            # KPIs Gerais
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("OEE Médio", f"{filtered_oee['OEE'].mean():.1%}")
+            k2.metric("Disponibilidade", f"{filtered_oee['Disponibilidade'].mean():.1%}")
+            k3.metric("Performance", f"{filtered_oee['Performance'].mean():.1%}")
+            k4.metric("Qualidade", f"{filtered_oee['Qualidade'].mean():.1%}")
+            
+            # Gráfico de tendência
+            st.markdown("#### Evolução do OEE")
+            daily_oee = filtered_oee.groupby('Data')[['OEE', 'Disponibilidade', 'Performance', 'Qualidade']].mean().reset_index()
+            fig_oee = px.line(daily_oee, x='Data', y=['OEE', 'Disponibilidade', 'Performance', 'Qualidade'], 
+                              title="Evolução Diária dos Indicadores", markers=True)
+            st.plotly_chart(fig_oee, width="stretch")
+            
+            # Análise de Rejeito
+            st.markdown("---")
+            st.markdown("### Análise de Rejeitos")
+            
+            if "rejeito_df" in st.session_state and not st.session_state.rejeito_df.empty:
+                rej_df = st.session_state.rejeito_df
+                # Filtro de data também para rejeitos
+                if len(date_range) == 2:
+                    mask_rej = (rej_df['Data'].dt.date >= date_range[0]) & (rej_df['Data'].dt.date <= date_range[1])
+                    filtered_rej = rej_df[mask_rej]
+                else:
+                    filtered_rej = rej_df
+                    
+                col_rej1, col_rej2 = st.columns(2)
+                
+                with col_rej1:
+                    st.markdown("#### Top Motivos de Rejeição")
+                    top_rejeitos = filtered_rej.groupby('Motivo')['QtdRejeitada'].sum().sort_values(ascending=False).head(10).reset_index()
+                    fig_rej = px.bar(top_rejeitos, x='QtdRejeitada', y='Motivo', orientation='h', title="Top 10 Motivos (Qtd)", text_auto=True)
+                    fig_rej.update_layout(yaxis={'categoryorder':'total ascending'})
+                    st.plotly_chart(fig_rej, width="stretch")
+                    
+                with col_rej2:
+                    st.markdown("#### Rejeição por Máquina")
+                    mach_rej = filtered_rej.groupby('Maquina')['QtdRejeitada'].sum().reset_index()
+                    fig_mach = px.pie(mach_rej, values='QtdRejeitada', names='Maquina', title="Distribuição por Máquina", hole=0.4)
+                    st.plotly_chart(fig_mach, width="stretch")
+                    
+            else:
+                st.info("Dados de rejeição não disponíveis.")
+        
+        st.markdown("---")
+        st.markdown("### Assistente de Eficiência")
+        prompt_oee = st.chat_input("Pergunte sobre OEE, máquinas ou rejeitos...")
+        
+        if prompt_oee:
+            with st.chat_message("user"):
+                st.markdown(prompt_oee)
+            
+            with st.chat_message("assistant"):
+                dfs = {
+                    "erros": st.session_state.erros_df,
+                    "trabalhos": st.session_state.trabalhos_df,
+                    "dacen": st.session_state.dacen_df,
+                    "psi": st.session_state.psi_df,
+                    "gerais": st.session_state.gerais_df,
+                    "producao": st.session_state.producao_df,
+                    "oee": st.session_state.get("oee_df", pd.DataFrame()),
+                    "rejeito": st.session_state.get("rejeito_df", pd.DataFrame())
+                }
+                process_chat_request(prompt_oee, dfs)
+                
+        else:
+            if not "oee_df" in st.session_state and st.button("Tentar Recarregar Dados"):
+                refresh_data()
+                st.rerun()
 
     with tab_chat:
         # Input do chat
@@ -701,17 +1192,6 @@ with col_meio:
 
             # Processar resposta
             with st.chat_message("assistant"):
-                # Indicador de progresso do processamento
-                progress_container = st.empty()
-                status_container = st.empty()
-                
-                with progress_container:
-                    progress_bar = st.progress(0)
-                
-                with status_container:
-                    st.info('Preparando contexto dos dados...')
-                progress_bar.progress(0.20)
-                
                 dfs = {
                     "erros": st.session_state.erros_df,
                     "trabalhos": st.session_state.trabalhos_df,
@@ -721,105 +1201,10 @@ with col_meio:
                     "producao": st.session_state.producao_df
                 }
                 
-                with status_container:
-                    st.info('Processando dados das planilhas...')
-                progress_bar.progress(0.40)
-                context = build_context(dfs)
-                
-                # Instruções de sistema para o modelo
-                system_instruction = f"""
-                Você é o Assistente Técnico PlasPrint IA especializado em flexografia e impressão industrial.
-                Responda em português brasileiro de forma estritamente técnica e direta.
-                **NUNCA use saudações, introduções ou frases de cortesia.**
-                Vá direto ao ponto e forneça a solução ou análise técnica imediatamente.
-                Baseie-se nos dados das planilhas fornecidas e nos dados de produção (Excel).
-                
-                FORMATO DE RESPOSTA:
-                - Use **Tabelas Markdown** para apresentar custos, consumos e parâmetros numéricos.
-                - Use **Títulos (##)** ou **Negrito** para separar seções (ex: Tempo de Processo, Custos).
-                - Use **Listas (bullet points)** para parâmetros técnicos.
-                - Mantenha um espaçamento claro entre parágrafos.
-                - **PROIBIDO**: Nunca mostre nomes técnicos de colunas do banco de dados (ex: `config_white`, `id`, `referencia`) entre parênteses ou em qualquer lugar da resposta. Use apenas o nome amigável/descritivo do parâmetro.
-                
-                UNIDADES DE MEDIDA - CONSUMO DE TINTA:
-                - **IMPORTANTE**: Os valores brutos nas planilhas (ex: 0.057, 0.015) representam **ml (mililitros) por unidade (garrafa)**.
-                - **DIFERENCIAÇÃO VISUAL OBRIGATÓRIA**: Para evitar confusão, nunca mostre o mesmo número para unidade e milheiro.
-                - **Consumo Unitário**: Use o valor bruto (ex: 0.057) e a unidade **ml/garrafa**.
-                - **Consumo por Milheiro (1.000 un)**: Multiplique o valor bruto por 1.000 e use a unidade **ml/milheiro** (ex: 57 ml).
-                - Exemplo: Se o valor é 0.055, exiba "0.055 ml/garrafa" e "55 ml/1.000 unidades".
-                
-                ANÁLISE FINANCEIRA E CUSTOS:
-                - **Moeda Brasileira**: Use SEMPRE o prefixo **R$** para custos calculados pelo sistema (colunas `custo_total_tinta`, `custo_total_tinta_mil`).
-                - **Moeda Americana**: Use o prefixo **$** APENAS se encontrar valores originalmente em dólar nas planilhas de insumos/peças.
-                - A coluna `custo_total_tinta` contém o **Custo Unitário (por garrafa)** em Reais (R$).
-                - A coluna `custo_total_tinta_mil` contém o **Custo por Milheiro (1.000 garrafas)** em Reais (R$).
-                - Os preços base por litro são: {st.session_state.precos_tintas} (Valores em R$/L).
-                - Se solicitado análise de preço ou lucro, considere a margem de {st.session_state.get('margem_lucro', 40)}% sobre o custo unitário.
 
-                TRATAMENTO DE LINKS E MÍDIA:
-                - **ESTRUTURA OBRIGATÓRIA**: Para links de imagem, use exatamente: Link de Imagem: [URL].
-                - Para links de vídeo, use exatamente: Link de Vídeo: [URL].
-                - Para outros links, use exatamente: Link de Informação: [URL].
-                - **REGRAS DE RESPOSTA**: Ao citar uma **referência**, você DEVE mostrar também a **decoração** correspondente. Exemplo: "Referência 123 (Decoração: Nome)".
-                - **LOCALIZAÇÃO**: Coloque o link imediatamente APÓS descrever o item.
-                - **REGRA DE OURO**: Sempre inclua os links das colunas IMAGEM e informações. O sistema transformará os links de imagem em fotos e os de vídeo em players automaticamente.
-                """
-                
-                full_prompt = [f"Contexto das Planilhas:\n{context}\n\nPergunta do Usuário: {prompt}"]
-                if uploaded_file:
-                    with status_container:
-                        st.info('Processando imagem enviada...')
-                    progress_bar.progress(0.50)
-                    full_prompt.append(image_to_send)
+                process_chat_request(prompt, dfs, image_to_send)
 
-                try:
-                    with status_container:
-                        st.info('Processando consulta...')
-                    progress_bar.progress(0.70)
-                    
-                    # Sistema de retry para lidar com 429 RESOURCE_EXHAUSTED
-                    max_retries = 3
-                    retry_delay = 5 # segundos iniciais
-                    resp = None
-                    
-                    for attempt in range(max_retries):
-                        try:
-                            resp = client.models.generate_content(
-                                model="gemini-flash-latest", 
-                                contents=full_prompt,
-                                config={"system_instruction": system_instruction}
-                            )
-                            break # Sucesso, sai do loop
-                        except Exception as e:
-                            if "429" in str(e) and attempt < max_retries - 1:
-                                with status_container:
-                                    st.warning(f"Limite de quota atingido. Tentando novamente em {retry_delay}s... (Tentativa {attempt + 1}/{max_retries})")
-                                time.sleep(retry_delay)
-                                retry_delay *= 2 # Backoff exponencial
-                            else:
-                                raise e # Erro fatal ou última tentativa falhou
-                    
-                    with status_container:
-                        st.info('Formatando resposta...')
-                    progress_bar.progress(0.90)
 
-                    # Limpeza mínima: apenas links de imagem redundantes se houver
-                    clean_text = re.sub(r'Links de imagens:?', '', resp.text, flags=re.IGNORECASE)
-                    
-                    # Limpar indicadores de progresso
-                    progress_bar.progress(1.0)
-                    time.sleep(0.3)
-                    progress_container.empty()
-                    status_container.empty()
-                    
-                    # Renderização Inteligente: Texto + Mídia intercalados
-                    render_smart_response(clean_text)
-
-                except Exception as e:
-                    if "progress_container" in locals() and progress_container: progress_container.empty()
-                    if "status_container" in locals() and status_container: status_container.empty()
-                    st.error(f"Erro ao processar: {e}")
-                    st.warning('Dica: Tente reformular sua pergunta ou verifique sua conexão.')
 
     with tab_financeiro:
         st.subheader("Visão de Custos por Produto")
@@ -845,10 +1230,15 @@ with col_meio:
             
             # Tabela Detalhada
             st.write("#### Detalhamento Financeiro (Custo por Unidade)")
+            df_disp = df_fin[['referencia', 'decoracao', 'produto', 'custo_total_tinta', 'custo_total_tinta_mil']].copy()
+            df_disp.columns = ['Referência', 'Decoração', 'Produto', 'Custo Unitário (R$)', 'Custo 1.000 un (R$)']
+            
+            # Paginação
+            df_paged = paginate_dataframe(df_disp, page_size=20, key_prefix="fin_det")
+            
             st.dataframe(
-                df_fin[['referencia', 'decoracao', 'produto', 'custo_total_tinta', 'custo_total_tinta_mil']]
-                .rename(columns={'referencia': 'Referência', 'decoracao': 'Decoração', 'produto': 'Produto', 'custo_total_tinta': 'Custo Unitário (R$)', 'custo_total_tinta_mil': 'Custo 1.000 un (R$)'})
-                .style.format(precision=4, decimal=',', thousands='.')
+                df_paged.style.format(precision=4, decimal=',', thousands='.'),
+                use_container_width=True
             )
             
             # Sugestão de Preço com Margem
@@ -896,7 +1286,7 @@ with col_meio:
                                'white': '#FFFFFF', 'varnish': '#C0C0C0'
                            }, hole=0.4)
             fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=350)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width="stretch")
 
             st.write("---")
             
@@ -906,7 +1296,7 @@ with col_meio:
                                    color='total_ml', size='total_ml',
                                    labels={'tempo_s': 'Tempo (segundos)', 'total_ml': 'Consumo (ml/1k)'},
                                    color_continuous_scale='Viridis')
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_scatter, width="stretch")
             
             
             # 4. Explorador de Performance Geral
@@ -920,15 +1310,14 @@ with col_meio:
             st.info(f"Média Geral de Consumo: {media_total:.2f} ml | Itens com consumo elevado (>50% da média): {alto_consumo_count}")
             
             # Tabela completa com todas as fichas
+            df_tec_disp = df_tec[['referencia', 'decoracao', 'produto', 'total_ml', 'tempo_s']].copy()
+            df_tec_disp.columns = ['Referência', 'Decoração', 'Produto', 'Consumo Total (ml)', 'Tempo (s)']
+            
+            # Paginação
+            df_tec_paged = paginate_dataframe(df_tec_disp, page_size=20, key_prefix="ana_det")
+            
             st.dataframe(
-                df_tec[['referencia', 'decoracao', 'produto', 'total_ml', 'tempo_s']]
-                .rename(columns={
-                    'referencia': 'Referência', 
-                    'decoracao': 'Decoração', 
-                    'produto': 'Produto', 
-                    'total_ml': 'Consumo Total (ml)', 
-                    'tempo_s': 'Tempo (s)'
-                }),
+                df_tec_paged,
                 use_container_width=True,
                 hide_index=True
             )
@@ -936,40 +1325,26 @@ with col_meio:
         else:
             st.info("Nenhum dado disponível para análise analítica.")
 
-st.markdown(f"""
+
+# Footer
+footer_css = """
 <style>
-/* Ajuste do Logo e Rodapé para não sobrepor conteúdo */
-.footer-container {{
-    width: 100%;
-    text-align: center;
-    margin-top: 50px;
-    padding-bottom: 20px;
-}}
-.logo-footer {{ 
-    display: inline-block;
-    width: 120px;
-    opacity: 0.6;
-    transition: opacity 0.3s ease;
-    margin-bottom: 10px;
-}}
-.logo-footer:hover {{
-    opacity: 1.0;
-}}
-.version-tag {{ 
-    font-size: 12px; 
-    color: white; 
-    opacity: 0.5;
-}}
-/* Adicionar espaço no fim da página para garantir que nada fique colado */
-[data-testid="stAppViewBlockContainer"] {{
-    padding-bottom: 150px !important;
-}}
+.footer-container { width: 100%; text-align: center; margin-top: 50px; padding-bottom: 20px; }
+.logo-footer { width: 120px; opacity: 0.6; transition: opacity 0.3s ease; margin-bottom: 10px; }
+.logo-footer:hover { opacity: 1.0; }
+.version-tag { font-size: 12px; color: white; opacity: 0.5; }
+[data-testid="stAppViewBlockContainer"] { padding-bottom: 150px !important; }
 </style>
-<div class="footer-container">
-    <img src="data:image/png;base64,{img_base64_logo}" class="logo-footer" /><br>
-    <div class="version-tag">V2.0</div>
+"""
+
+footer_html = f"""
+<div class='footer-container'>
+    <img src="data:image/png;base64,{img_base64_logo}" class="logo-footer"><br>
+    <div class='version-tag'>V2.0</div>
 </div>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(footer_css + footer_html, unsafe_allow_html=True)
 
 
 
