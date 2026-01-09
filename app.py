@@ -1040,8 +1040,35 @@ with col_meio:
     st.markdown("<h1 class='custom-font'>PlasPrint IA</h1><br>", unsafe_allow_html=True)
 
 with col_dir:
-    # Configurações com Popover e Ícone de Engrenagem
-    with st.popover(" ", help="Configurações de Custos (USD)"):
+    # Botão de Configurações Customizado
+    if "show_settings" not in st.session_state:
+        st.session_state.show_settings = False
+    
+    # Botão HTML customizado
+    st.markdown(f"""
+    <style>
+    button[key="settings-toggle"] {{
+        display: none !important;
+    }}
+    </style>
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 999999;">
+        <img src="data:image/png;base64,{img_base64_config}" 
+             style="width: 44px; height: 44px; cursor: pointer; opacity: 0.8; 
+                    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; 
+                    padding: 8px; background: rgba(0, 0, 0, 0.3); 
+                    transition: all 0.2s ease;"
+             onmouseover="this.style.opacity='1.0'; this.style.transform='scale(1.05)';"
+             onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)';"
+             onclick="document.getElementById('settings-toggle').click();">
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Botão invisível para controlar o expander via session_state  
+    if st.button("⚙", key="settings-toggle", help="Configurações"):
+        st.session_state.show_settings = not st.session_state.show_settings
+    
+    # Mostrar configurações se o estado estiver ativo
+    if st.session_state.show_settings:
 
         st.markdown("### 🛠️ Custos de Tintas (USD)")
         
@@ -1065,11 +1092,6 @@ with col_dir:
                 updates[cor] = st.number_input(f"{cor.capitalize()} ($/L)", value=float(current_usd), step=1.0, format="%.2f")
             
             st.markdown("---")
-            st.markdown("### 📈 Margem")
-            current_margin = st.session_state.get('margem_lucro', 40)
-            margem = st.slider("Margem de Lucro (%)", 10, 200, current_margin)
-
-            st.markdown("---")
             if st.form_submit_button("Salvar Configurações"):
                 try:
                     conn = sqlite3.connect('fichas_tecnicas.db')
@@ -1091,7 +1113,6 @@ with col_dir:
                     conn.commit()
                     conn.close()
                     st.session_state.precos_tintas = get_ink_prices() # Refresh session
-                    st.session_state.margem_lucro = margem
                     st.success("Valores atualizados e convertidos!")
                     time.sleep(1)
                     st.rerun()
