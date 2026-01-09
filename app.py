@@ -239,6 +239,7 @@ def get_base64_file(path):
 img_base64 = get_base64_file(background_image)
 img_base64_logo = get_base64_file(logo_image)
 font_base64 = get_base64_file("font.ttf")
+img_base64_config = get_base64_file("config.png")
 
 st.markdown(f"""
 <style>
@@ -425,16 +426,13 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     display: none !important;
 }}
 
-/* Posicionamento e Estilo do Botão de Configurações (Engrenagem) */
-.fixed-settings {{
+/* Botão de Configurações (Engrenagem customizada) */
+[data-testid="stPopover"] > button {{
     position: fixed !important;
     top: 15px !important;
     right: 15px !important;
     z-index: 999999 !important;
-}}
-
-/* Alvo direto em qualquer botão dentro do container fixo */
-.fixed-settings button {{
+    
     background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -442,38 +440,31 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     margin: 0 !important;
     min-height: 0 !important;
     min-width: 0 !important;
-    width: 32px !important;
-    height: 32px !important;
-    color: transparent !important; /* Esconde o emoji original */
-    font-size: 0 !important; /* Esconde texto residual (ligaduras) */
-    line-height: 0 !important;
-    overflow: hidden !important;
+    width: 38px !important;
+    height: 38px !important;
+    
+    /* Usar imagem config.png */
+    background-image: url("data:image/png;base64,{img_base64_config}") !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    
+    cursor: pointer !important;
+    opacity: 0.8 !important;
+    transition: all 0.3s ease !important;
 }}
 
-/* Esconder ABSOLUTAMENTE tudo dentro do botão (SVGs, SPANs, material icons do Streamlit) */
-.fixed-settings button * {{
+/* Esconder o ícone gear original e a seta do Streamlit */
+[data-testid="stPopover"] > button * {{
     display: none !important;
     visibility: hidden !important;
     font-size: 0 !important;
     color: transparent !important;
 }}
 
-/* Reinjetar a engrenagem pequena e discreta */
-.fixed-settings button::before {{
-    content: "⚙️";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    color: white !important;
-    opacity: 0.3;
-    font-size: 16px !important;
-    visibility: visible !important;
-    pointer-events: none;
-}}
-
-.fixed-settings button:hover::before {{
-    opacity: 1.0;
+[data-testid="stPopover"] > button:hover {{
+    opacity: 1.0 !important;
+    transform: scale(1.1) !important;
 }}
 
 /* Garantir que o container do popover não tenha bordas no estado fechado */
@@ -1043,7 +1034,6 @@ with col_meio:
 
 with col_dir:
     # Configurações com Popover e Ícone de Engrenagem
-    st.markdown('<div class="fixed-settings">', unsafe_allow_html=True)
     with st.popover("⚙️", help="Configurações de Custos (USD)"):
 
         st.markdown("### 🛠️ Custos de Tintas (USD)")
@@ -1100,7 +1090,6 @@ with col_dir:
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_meio:
 
