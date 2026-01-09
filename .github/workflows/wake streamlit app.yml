@@ -2,8 +2,8 @@ name: Wake Streamlit App
 
 on:
   schedule:
-    # A cada 10 minutos
-    - cron: "*/10 * * * *"
+    # A cada 60 minutos
+    - cron: "*/60 * * * *"
   workflow_dispatch:
 
 jobs:
