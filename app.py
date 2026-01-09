@@ -541,14 +541,32 @@ st.markdown("""
     border-left-color: #667eea !important;
 }
 
-/* Desativar o efeito de 'ghosting'/'blur' do Streamlit durante a execução */
-[data-testid="stAppViewBlockContainer"] {
+/* nuclear fix for ghosting/blur/fade during processing */
+[data-testid="stAppViewBlockContainer"],
+[data-testid="stAppViewBlockContainer"] > div:first-child,
+.main .block-container,
+.stApp {
     filter: none !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
 }
 
-/* Desativar transições globais que interferem com o re-render do Streamlit */
-* {
-    transition: none !important;
+/* also target any element that Streamlit might be dynamically adding filters to */
+div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
+    filter: none !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
+}
+
+/* ensure my custom progress bar Pulse still works (it uses opacity) 
+   we will scope it specifically so it's not neutralized by the above rule */
+.stProgress > div > div > div > div {
+    animation: progressPulse 1.5s ease-in-out infinite !important;
+}
+
+/* Desativar o overlay de loading que o Streamlit às vezes coloca sobre elementos individuais */
+[data-testid="stSkeleton"] {
+    display: none !important;
 }
 
 /* Aplicar transições apenas a elementos específicos se necessário */
@@ -1227,30 +1245,49 @@ with col_meio:
             with c3:
                 st.metric("Produto Mais Barato (Unidade)", f"R$ {df_fin['custo_total_tinta'].min():.4f}")
             
+            st.write("---")
             
-            # Tabela Detalhada
+            # 1. Top 10 High-Cost Products (Full Width)
+            st.write("#### Top 10: Produtos com Maior Custo (1000 un.)")
+            df_top10 = df_fin.nlargest(10, 'custo_total_tinta_mil')[['referencia', 'produto', 'decoracao', 'custo_total_tinta_mil']].copy()
+            df_top10['label'] = df_top10['referencia'] + " - " + df_top10['produto'] + " (" + df_top10['decoracao'] + ")"
+            
+            # Ordenar do MAIOR para o MENOR para que o maior fique no TOPO no gráfico horizontal
+            df_top10 = df_top10.sort_values('custo_total_tinta_mil', ascending=True)
+            
+            fig_top10 = px.bar(df_top10, x='custo_total_tinta_mil', y='label', orientation='h',
+                              text='custo_total_tinta_mil', color='produto', 
+                              labels={'custo_total_tinta_mil': 'Custo (R$)', 'label': 'Produto (Decoração)'},
+                              color_discrete_sequence=px.colors.qualitative.Plotly,
+                              category_orders={"label": df_top10['label'].tolist()}) # Forçar a ordem exata do DF
+            
+            fig_top10.update_traces(
+                texttemplate='R$ %{text:.2f}', 
+                textposition='inside',
+                insidetextanchor='start'
+            )
+            
+            fig_top10.update_layout(
+                margin=dict(t=20, b=0, l=0, r=0), 
+                height=500, 
+                showlegend=False,
+                xaxis_visible=False,
+                coloraxis_showscale=False,
+                yaxis={'categoryorder':'array', 'categoryarray': df_top10['label'].tolist()}
+            )
+            st.plotly_chart(fig_top10, use_container_width=True)
+
+            st.write("---")
             st.write("#### Detalhamento Financeiro (Custo por Unidade)")
             df_disp = df_fin[['referencia', 'decoracao', 'produto', 'custo_total_tinta', 'custo_total_tinta_mil']].copy()
             df_disp.columns = ['Referência', 'Decoração', 'Produto', 'Custo Unitário (R$)', 'Custo 1.000 un (R$)']
             
-            # Paginação
-            df_paged = paginate_dataframe(df_disp, page_size=20, key_prefix="fin_det")
-            
             st.dataframe(
-                df_paged.style.format(precision=4, decimal=',', thousands='.'),
+                df_disp.style.format(precision=4, decimal=',', thousands='.'),
                 use_container_width=True
             )
             
-            # Sugestão de Preço com Margem
-            st.write("#### Sugestão de Formação de Preço (por Unidade)")
-            margem = st.session_state.get('margem_lucro', 40) / 100
-            df_fin['preco_venda_sugerido'] = df_fin['custo_total_tinta'] * (1 + margem)
-            st.dataframe(
-                df_fin[['referencia', 'decoracao', 'produto', 'custo_total_tinta', 'preco_venda_sugerido']]
-                .rename(columns={'referencia': 'Referência', 'decoracao': 'Decoração', 'produto': 'Produto', 'custo_total_tinta': 'Custo Tinta (R$)', 'preco_venda_sugerido': f'Preço Sugerido (+{margem*100:.0f}%)'})
-                .head(20),
-                use_container_width=True
-            )
+            # (Removido sugestão de formação de preço conforme solicitado)
     with tab_analitico:
         st.subheader("Análise de Performance e Consumo")
         
@@ -1259,7 +1296,7 @@ with col_meio:
             cores = ['cyan', 'magenta', 'yellow', 'black', 'white', 'varnish']
             df_ana['total_ml'] = df_ana[cores].sum(axis=1)
             
-            # Métricas Gerais
+            # --- Métricas Gerais ---
             m1, m2, m3, m4 = st.columns(4)
             with m1:
                 st.metric("Total de Fichas", len(df_ana))
@@ -1274,53 +1311,121 @@ with col_meio:
                 st.metric("Cor Mais Usada", most_used_color.capitalize())
 
             st.write("---")
+
+            # 1. Gráficos de Pizza (lado a lado)
+            col_chart1, col_chart2 = st.columns(2)
             
-            # Distribuição de Consumo por Cor
-            st.write("#### Distribuição de Tintas (Total)")
-            cons_cor = df_ana[cores].sum().reset_index()
-            cons_cor.columns = ['Cor', 'Volume']
-            fig_pie = px.pie(cons_cor, values='Volume', names='Cor', color='Cor',
-                           color_discrete_map={
-                               'cyan': '#00BFFF', 'magenta': '#FF00FF', 
-                               'yellow': '#FFFF00', 'black': '#000000',
-                               'white': '#FFFFFF', 'varnish': '#C0C0C0'
-                           }, hole=0.4)
-            fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=350)
-            st.plotly_chart(fig_pie, width="stretch")
+            with col_chart1:
+                st.write("#### Distribuição de Tintas por Cor (%)")
+                cons_cor = df_ana[cores].sum().reset_index()
+                cons_cor.columns = ['Cor', 'Volume']
+                fig_pie = px.pie(cons_cor, values='Volume', names='Cor', color='Cor',
+                               color_discrete_map={
+                                   'cyan': '#00BFFF', 'magenta': '#FF00FF', 
+                                   'yellow': '#FFFF00', 'black': '#444444',
+                                   'white': '#FFFFFF', 'varnish': '#C0C0C0'
+                               }, hole=0.4)
+                fig_pie.update_layout(margin=dict(t=20, b=0, l=0, r=0), height=350)
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+            with col_chart2:
+                st.write("#### Mix de Produtos (Qtd de Fichas)")
+                prod_counts = df_ana['produto'].value_counts().reset_index()
+                prod_counts.columns = ['produto', 'quantidade']
+                fig_prod = px.pie(prod_counts, values='quantidade', names='produto', hole=0.4)
+                fig_prod.update_traces(textinfo='percent')
+                fig_prod.update_layout(margin=dict(t=20, b=0, l=0, r=0), height=350)
+                st.plotly_chart(fig_prod, use_container_width=True)
 
             st.write("---")
-            
-            # 3. Scatter: Tempo vs Consumo
-            st.write("#### Relação: Tempo de Produção vs Consumo de Tinta")
-            fig_scatter = px.scatter(df_ana, x='tempo_s', y='total_ml', hover_name='produto',
-                                   color='total_ml', size='total_ml',
-                                   labels={'tempo_s': 'Tempo (segundos)', 'total_ml': 'Consumo (ml/1k)'},
-                                   color_continuous_scale='Viridis')
-            st.plotly_chart(fig_scatter, width="stretch")
-            
+
+            # 2. Gráfico de Barras (Média de Consumo por Cor)
+            st.write("#### Média de Consumo por Cor (ml/1k)")
+            avg_cons = df_ana[cores].mean().reset_index()
+            avg_cons.columns = ['Cor', 'Média de Consumo']
+            fig_bar = px.bar(avg_cons, x='Cor', y='Média de Consumo', color='Cor',
+                            color_discrete_map={
+                                'cyan': '#00BFFF', 'magenta': '#FF00FF', 
+                                'yellow': '#FFFF00', 'black': '#444444',
+                                'white': '#FFFFFF', 'varnish': '#C0C0C0'
+                            })
+            fig_bar.update_layout(showlegend=False)
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+            st.write("---")
+
+            # 3. TreeMap (Hierarquia de Consumo)
+            st.write("#### Hierarquia de Consumo (Decoração > Produto)")
+            fig_tree = px.treemap(df_ana, path=['decoracao', 'produto'], values='total_ml',
+                                 color='total_ml', color_continuous_scale='Viridis',
+                                 labels={'total_ml': 'Consumo Total (ml)', 'decoracao': 'Decoração', 'produto': 'Produto'})
+            st.plotly_chart(fig_tree, use_container_width=True)
+
+            st.write("---")
             
             # 4. Explorador de Performance Geral
             st.write("#### Explorador de Performance e Consumo Técnico")
             
             df_tec = df_ana.copy()
-
             media_total = df_ana['total_ml'].mean()
             alto_consumo_count = len(df_ana[df_ana['total_ml'] > media_total * 1.5])
             
             st.info(f"Média Geral de Consumo: {media_total:.2f} ml | Itens com consumo elevado (>50% da média): {alto_consumo_count}")
             
-            # Tabela completa com todas as fichas
             df_tec_disp = df_tec[['referencia', 'decoracao', 'produto', 'total_ml', 'tempo_s']].copy()
             df_tec_disp.columns = ['Referência', 'Decoração', 'Produto', 'Consumo Total (ml)', 'Tempo (s)']
             
-            # Paginação
-            df_tec_paged = paginate_dataframe(df_tec_disp, page_size=20, key_prefix="ana_det")
+            st.dataframe(df_tec_disp, use_container_width=True, hide_index=True)
+
+            # --- 5. Relatório Analítico Gerado por IA (ao final) ---
+            st.write("---")
+            st.markdown("### Relatório Analítico (PlasPrint IA)")
             
-            st.dataframe(
-                df_tec_paged,
-                use_container_width=True,
-                hide_index=True
-            )
+            @st.cache_data(ttl=3600)
+            def generate_analytical_report(stats_json):
+                try:
+                    stats = json.loads(stats_json)
+                    prompt = f"""
+                    Como Assistente Técnico de Impressão Digital PlasPrint IA, analise os seguintes dados de produção e consumo (nosso processo é de IMPRESSÃO DIGITAL):
+                    - Total de Fichas: {stats['total_fichas']}
+                    - Consumo Médio Total: {stats['media_ml']:.2f} ml/1k
+                    - Tempo Médio de Produção: {stats['media_tempo']:.1f} segundos
+                    - Cor Predominante: {stats['cor_lider']}
+                    - Volume Total de Tintas: {stats['volume_total']:.1f} ml
+                    - Itens com Consumo Elevado: {stats['itens_criticos']}
+                    - Distribuição por Produto: {stats['prod_dist']}
+                    
+                    Gere um resumo executivo muito simples e direto (máximo de 3 parágrafos) focado nos pontos críticos e oportunidades de economia. Evite termos de flexografia ou processos analógicos. Vá direto ao ponto.
+                    """
+                    response = client.models.generate_content(
+                        model="gemini-flash-latest",
+                        contents=[prompt],
+                        config={"system_instruction": "Você é um especialista em análise de dados industriais e impressão digital industrial."}
+                    )
+                    return response.text
+                except Exception as e:
+                    return f"Não foi possível gerar o relatório no momento: {e}"
+
+            prod_cons_data = df_ana.groupby('produto')['total_ml'].sum().sort_values(ascending=False)
+            prod_dist_str = ", ".join([f"{k}: {v:.1f}ml" for k, v in prod_cons_data.head(5).to_dict().items()])
+            
+            stats_data = {
+                "total_fichas": len(df_ana),
+                "media_ml": df_ana['total_ml'].mean(),
+                "media_tempo": df_ana['tempo_s'].mean(),
+                "cor_lider": df_ana[cores].sum().idxmax().capitalize(),
+                "volume_total": df_ana[cores].sum().sum(),
+                "itens_criticos": len(df_ana[df_ana['total_ml'] > df_ana['total_ml'].mean() * 1.5]),
+                "prod_dist": prod_dist_str
+            }
+            
+            with st.spinner("IA analisando dados..."):
+                report = generate_analytical_report(json.dumps(stats_data))
+                st.markdown(f"""
+                <div style="background-color: rgba(0, 210, 255, 0.05); padding: 20px; border-radius: 10px; border-left: 5px solid #00d2ff; margin-bottom: 25px;">
+                    {report}
+                </div>
+                """, unsafe_allow_html=True)
 
         else:
             st.info("Nenhum dado disponível para análise analítica.")
