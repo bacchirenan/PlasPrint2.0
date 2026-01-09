@@ -426,50 +426,57 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     display: none !important;
 }}
 
-/* Botão de Configurações (Engrenagem customizada) */
-[data-testid="stPopover"] > button {{
+/* Botão de Configurações (Engrenagem customizada) - ALTA PRIORIDADE */
+div[data-testid="stPopover"] > button,
+div.stPopover > button,
+.stPopover > button {{
     position: fixed !important;
-    top: 15px !important;
-    right: 15px !important;
-    z-index: 999999 !important;
+    top: 20px !important;
+    right: 20px !important;
+    z-index: 99999999 !important;
     
     background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    min-height: 0 !important;
-    min-width: 0 !important;
-    width: 38px !important;
-    height: 38px !important;
-    
-    /* Usar imagem config.png */
     background-image: url("data:image/png;base64,{img_base64_config}") !important;
-    background-size: contain !important;
+    background-size: 28px !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
     
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    
+    color: transparent !important;
+    font-size: 0 !important;
     cursor: pointer !important;
-    opacity: 0.8 !important;
-    transition: all 0.3s ease !important;
+    opacity: 1.0 !important;
+    transition: all 0.2s ease !important;
 }}
 
-/* Esconder o ícone gear original e a seta do Streamlit */
-[data-testid="stPopover"] > button * {{
+/* Esconder ABSOLUTAMENTE tudo dentro do botão (Ícone default e Chevron) */
+div[data-testid="stPopover"] > button *,
+div.stPopover > button *,
+.stPopover > button * {{
     display: none !important;
     visibility: hidden !important;
-    font-size: 0 !important;
-    color: transparent !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
 }}
 
-[data-testid="stPopover"] > button:hover {{
-    opacity: 1.0 !important;
-    transform: scale(1.1) !important;
+div[data-testid="stPopover"] > button:hover,
+div.stPopover > button:hover {{
+    transform: scale(1.05) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
 }}
 
-/* Garantir que o container do popover não tenha bordas no estado fechado */
-div[data-testid="stPopover"] {{
+/* Remover bordas residuais do container do popover */
+div[data-testid="stPopover"], div.stPopover {{
     border: none !important;
+    background: transparent !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -1034,7 +1041,7 @@ with col_meio:
 
 with col_dir:
     # Configurações com Popover e Ícone de Engrenagem
-    with st.popover("⚙️", help="Configurações de Custos (USD)"):
+    with st.popover(" ", help="Configurações de Custos (USD)"):
 
         st.markdown("### 🛠️ Custos de Tintas (USD)")
         
@@ -1445,6 +1452,76 @@ footer_html = f"""
 """
 
 st.markdown(footer_css + footer_html, unsafe_allow_html=True)
+
+# ===== JAVASCRIPT PARA FORÇAR O ÍCONE CONFIG.PNG =====
+st.markdown(f"""
+<script>
+document.addEventListener('DOMContentLoaded', function() {{
+    function applyConfigIcon() {{
+        // Encontrar o botão do popover
+        const popoverButtons = document.querySelectorAll('button[data-testid="stPopover"], div[data-testid="stPopover"] button, button[kind="secondary"]');
+        
+        popoverButtons.forEach(function(btn) {{
+            // Aplicar estilos diretamente via JavaScript
+            btn.style.cssText = `
+                position: fixed !important;
+                top: 20px !important;
+                right: 20px !important;
+                z-index: 99999999 !important;
+                background-color: transparent !important;
+                background-image: url('data:image/png;base64,{img_base64_config}') !important;
+                background-size: 28px !important;
+                background-repeat: no-repeat !important;
+                background-position: center !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
+                border-radius: 10px !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
+                color: transparent !important;
+                font-size: 0 !important;
+                cursor: pointer !important;
+                opacity: 0.9 !important;
+                transition: all 0.2s ease !important;
+            `;
+            
+            // Esconder todos os elementos filhos (emoji e chevron)
+            const children = btn.querySelectorAll('*');
+            children.forEach(function(child) {{
+                child.style.display = 'none';
+                child.style.visibility = 'hidden';
+            }});
+            
+            // Adicionar hover
+            btn.addEventListener('mouseenter', function() {{
+                this.style.opacity = '1.0';
+                this.style.transform = 'scale(1.05)';
+                this.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+            }});
+            
+            btn.addEventListener('mouseleave', function() {{
+                this.style.opacity = '0.9';
+                this.style.transform = 'scale(1)';
+                this.style.backgroundColor = 'transparent';
+            }});
+        }});
+    }}
+    
+    // Aplicar imediatamente
+    applyConfigIcon();
+    
+    // Reaplicar após um pequeno delay para garantir que pegue elementos renderizados depois
+    setTimeout(applyConfigIcon, 100);
+    setTimeout(applyConfigIcon, 500);
+    setTimeout(applyConfigIcon, 1000);
+    
+    // Observer para detectar mudanças no DOM e reaplicar
+    const observer = new MutationObserver(applyConfigIcon);
+    observer.observe(document.body, {{ childList: true, subtree: true }});
+}});
+</script>
+""", unsafe_allow_html=True)
 
 
 
