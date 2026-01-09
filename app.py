@@ -442,14 +442,20 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     margin: 0 !important;
     min-height: 0 !important;
     min-width: 0 !important;
-    width: auto !important;
-    height: auto !important;
+    width: 32px !important;
+    height: 32px !important;
     color: transparent !important; /* Esconde o emoji original */
+    font-size: 0 !important; /* Esconde texto residual (ligaduras) */
+    line-height: 0 !important;
+    overflow: hidden !important;
 }}
 
-/* Esconder a seta e qualquer SVG */
-.fixed-settings button svg {{
+/* Esconder ABSOLUTAMENTE tudo dentro do botão (SVGs, SPANs, material icons do Streamlit) */
+.fixed-settings button * {{
     display: none !important;
+    visibility: hidden !important;
+    font-size: 0 !important;
+    color: transparent !important;
 }}
 
 /* Reinjetar a engrenagem pequena e discreta */
@@ -461,7 +467,7 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     transform: translate(-50%, -50%);
     color: white !important;
     opacity: 0.3;
-    font-size: 14px !important; /* Tamanho reduzido */
+    font-size: 16px !important;
     visibility: visible !important;
     pointer-events: none;
 }}
