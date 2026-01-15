@@ -248,12 +248,11 @@ st.markdown(f"""
     src: url(data:font/ttf;base64,{font_base64}) format('truetype');
 }}
 
-/* Aplicar fonte ABSOLUTAMENTE em tudo: textos, números, métricas e tabelas */
+/* Aplicar fonte ABSOLUTAMENTE em tudo */
 * {{
     font-family: 'SamsungSharpSans', sans-serif !important;
 }}
 
-/* Garantir que métricas e dataframes (tabelas) herdem corretamente */
 [data-testid="stMetricValue"], 
 [data-testid="stTable"], 
 [data-testid="stDataFrame"],
@@ -262,7 +261,7 @@ div {{
     font-family: 'SamsungSharpSans', sans-serif !important;
 }}
 
-/* RESTAURAR ÍCONES: Impedir que a fonte customizada sobrescreva os glifos/ligaduras */
+/* RESTAURAR ÍCONES */
 [data-testid="stIconMaterial"], 
 .material-icons,
 .material-symbols-outlined,
@@ -270,7 +269,7 @@ i {{
     font-family: 'Material Symbols Outlined', 'Material Icons', 'serif' !important;
 }}
 
-/* Correção RADICAL para o texto 'keyboard_double_arrow_right' no cabeçalho */
+/* Correção para o texto no cabeçalho */
 header[data-testid="stHeader"] button {{
     font-size: 0 !important;
     color: transparent !important;
@@ -284,7 +283,7 @@ header[data-testid="stHeader"] button * {{
     visibility: hidden !important;
 }}
 
-/* Recriar o ícone da sidebar (seta/menu) de forma limpa */
+/* Recriar o ícone da sidebar */
 [data-testid="stSidebarCollapseButton"]::after {{
     content: "〉" !important;
     visibility: visible !important;
@@ -299,7 +298,6 @@ header[data-testid="stHeader"] button * {{
     pointer-events: none !important;
 }}
 
-/* Estilo do botão em si */
 [data-testid="stSidebarCollapseButton"] {{
     background-color: transparent !important;
     border: none !important;
@@ -308,10 +306,8 @@ header[data-testid="stHeader"] button * {{
     position: relative !important;
 }}
 
-/* Garante que o botão de Deploy e Menu (direita) não sumam texto se necessário, 
-   mas como o 'Deploy' costuma ser um span específico, vamos isolá-los */
 header[data-testid="stHeader"] [data-testid="stHeaderActionElements"] button {{
-    font-size: 14px !important; /* Restaura tamanho para botões da direita */
+    font-size: 14px !important;
     color: white !important;
 }}
 
@@ -331,6 +327,19 @@ p.custom-font {{
     background-repeat: no-repeat;
     background-attachment: fixed;
 }}
+
+    /* Efeito Glassmorphism */
+    .glass-card {{
+        background: rgba(25, 25, 25, 0.6) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
+        border-radius: 15px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 20px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8) !important;
+        margin-bottom: 25px !important;
+    }}
+
 /* Estilização do chat */
 .stChatMessage {{
     background-color: rgba(255, 255, 255, 0.05) !important;
@@ -339,15 +348,18 @@ p.custom-font {{
     margin-bottom: 10px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }}
+
 .stChatInputContainer {{
     padding-bottom: 20px !important;
 }}
+
 /* Remover ícones do chat */
 [data-testid="stChatMessageAvatarUser"], 
 [data-testid="stChatMessageAvatarAssistant"],
 .stChatMessageAvatar {{
     display: none !important;
 }}
+
 /* Estilizar o botão para largura total e texto 'Enviar Imagem' */
 div[data-testid="stFileUploader"] section,
 div[data-testid="stFileUploader"] label {{
@@ -358,20 +370,23 @@ div[data-testid="stFileUploader"] label {{
     padding: 0 !important;
     margin: 0 !important;
 }}
+
 div[data-testid="stFileUploader"] label {{
-    display: none !important; /* Esconde o rótulo redundante */
+    display: none !important;
 }}
+
 div[data-testid="stFileUploader"] section {{
     background-color: transparent !important;
     border: none !important;
     min-height: 0 !important;
     pointer-events: none !important;
 }}
+
 div[data-testid="stFileUploader"] svg,
 div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] {{
     display: none !important;
 }}
-/* APENAS o botão principal de upload (dentro da section) deve ter largura total e estilo customizado */
+
 div[data-testid="stFileUploader"] section button {{
     font-family: 'SamsungSharpSans', sans-serif !important;
     width: 100% !important;
@@ -390,7 +405,6 @@ div[data-testid="stFileUploader"] section button {{
     cursor: pointer !important;
 }}
 
-/* Texto do botão principal */
 div[data-testid="stFileUploader"] section button::before {{
     display: flex !important;
     content: "Enviar Imagem" !important;
@@ -407,7 +421,7 @@ div[data-testid="stFileUploader"] section button::before {{
     pointer-events: none !important;
 }}
 
-/* MATAR QUALQUER RASTRO EM OUTROS BOTÕES (Excluir, etc) */
+/* MATAR QUALQUER RASTRO EM OUTROS BOTÕES */
 div[data-testid="stFileUploader"] button:not(section button),
 div[data-testid="stFileUploaderDeleteBtn"],
 div[data-testid="stFileUploaderFileData"] button,
@@ -426,7 +440,7 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     display: none !important;
 }}
 
-/* Botão de Configurações (Engrenagem customizada) - ALTA PRIORIDADE */
+/* Botão de Configurações - ALTA PRIORIDADE */
 div[data-testid="stPopover"] > button,
 div.stPopover > button,
 .stPopover > button {{
@@ -434,20 +448,17 @@ div.stPopover > button,
     top: 20px !important;
     right: 20px !important;
     z-index: 99999999 !important;
-    
     background-color: transparent !important;
     background-image: url("data:image/png;base64,{img_base64_config}") !important;
     background-size: 28px !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
-    
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 10px !important;
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
     min-height: 44px !important;
-    
     color: transparent !important;
     font-size: 0 !important;
     cursor: pointer !important;
@@ -455,7 +466,6 @@ div.stPopover > button,
     transition: all 0.2s ease !important;
 }}
 
-/* Esconder ABSOLUTAMENTE tudo dentro do botão (Ícone default e Chevron) */
 div[data-testid="stPopover"] > button *,
 div.stPopover > button *,
 .stPopover > button * {{
@@ -473,37 +483,37 @@ div.stPopover > button:hover {{
     border-color: rgba(255, 255, 255, 0.3) !important;
 }}
 
-/* Remover bordas residuais do container do popover */
 div[data-testid="stPopover"], div.stPopover {{
     border: none !important;
     background: transparent !important;
 }}
-    /* Estilo para as abas (Tabs) - Azul Integrado ao Background */
-    [data-testid="stTab"] p {{
-        font-size: 1.1rem !important;
-        font-weight: bold !important;
-        color: rgba(255, 255, 255, 0.6) !important;
-        transition: all 0.3s ease !important;
-    }}
-    
-    [data-testid="stTab"][aria-selected="true"] {{
-        background-color: rgba(0, 210, 255, 0.08) !important;
-        border-bottom: 3px solid #00d2ff !important;
-    }}
-    
-    [data-testid="stTab"][aria-selected="true"] p {{
-        color: #00d2ff !important;
-    }}
 
-    [data-testid="stTab"]:hover p {{
-        color: white !important;
-    }}
+/* Estilo para as abas (Tabs) */
+[data-testid="stTab"] p {{
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    transition: all 0.3s ease !important;
+}}
 
-    /* Remover a linha vermelha padrão do Streamlit */
-    [data-testid="stTabList"] div[data-baseweb="tab-highlight"] {{
-        background-color: transparent !important;
-        display: none !important;
-    }}
+[data-testid="stTab"][aria-selected="true"] {{
+    background-color: rgba(0, 210, 255, 0.08) !important;
+    border-bottom: 3px solid #00d2ff !important;
+}}
+
+[data-testid="stTab"][aria-selected="true"] p {{
+    color: #00d2ff !important;
+}}
+
+[data-testid="stTab"]:hover p {{
+    color: white !important;
+}}
+
+/* Remover a linha vermelha padrão do Streamlit */
+[data-testid="stTabList"] div[data-baseweb="tab-highlight"] {{
+    background-color: transparent !important;
+    display: none !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 # Estilos customizados para progress bars e feedback visual
@@ -1132,41 +1142,52 @@ with col_meio:
                 with m2:
                     st.metric("TEEP Médio", f"{df_oee['teep'].mean()*100:.1f}%")
                 
-                st.write("---")
-                
-                # Gráfico de linha temporal
+                # Gráfico de linha temporal com efeito Glass
                 st.write("#### Evolução Temporal OEE e TEEP")
                 df_daily = df_oee.groupby('data')[['oee', 'teep']].mean().reset_index()
-                fig_line = px.line(df_daily, x='data', y=['oee', 'teep'], 
-                                  labels={'value': '', 'data': 'Data', 'variable': 'Métrica'},
+                
+                # Criar rótulo com dia da semana em português
+                dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+                df_daily['data_label'] = df_daily['data'].dt.strftime('%d/%m') + " (" + df_daily['data'].dt.dayofweek.map(dias_semana) + ")"
+                
+                fig_line = px.line(df_daily, x='data_label', y=['oee', 'teep'], 
+                                  labels={'value': '', 'data_label': '', 'variable': ''},
                                   color_discrete_sequence=['#3a7bd5', '#00d2ff'])
-                fig_line.update_layout(yaxis_tickformat='.1%', height=400,
-                                      legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
+                fig_line.update_traces(hovertemplate='%{y:.1%}')
+                fig_line.update_layout(
+                    yaxis_tickformat='.1%', 
+                    height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=20, b=80, l=60, r=40),
+                    legend_title_text='',
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                )
+                
                 st.plotly_chart(fig_line, use_container_width=True)
                 
-                st.write("---")
-                
-                # Gráfico por hora (para ver o 57% as 20:00 por exemplo)
+                # Gráfico por hora
                 df_hourly = df_oee.groupby('hora')[['oee', 'teep']].mean().reset_index()
-                # Derreter para facilitar a rotulagem em gráfico agrupado
                 df_hourly_melted = df_hourly.melt(id_vars='hora', var_name='Métrica', value_name='Valor')
                 
                 fig_hourly = px.bar(df_hourly_melted, x='hora', y='Valor', color='Métrica', 
                                    barmode='group',
                                    text='Valor',
-                                   labels={'Valor': '', 'hora': 'Hora', 'Métrica': 'Métrica'},
+                                   labels={'Valor': '', 'hora': 'Hora', 'Métrica': ''},
                                    color_discrete_sequence=['#3a7bd5', '#00d2ff'])
                 
-                fig_hourly.update_traces(texttemplate='%{text:.1%}', textposition='outside')
+                fig_hourly.update_traces(texttemplate='%{text:.1%}', textposition='outside', hovertemplate='%{y:.1%}')
                 fig_hourly.update_layout(
                     yaxis_visible=False,
                     height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     margin=dict(t=50, b=50, l=0, r=0),
+                    legend_title_text='',
                     legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
                 )
-                st.plotly_chart(fig_hourly, use_container_width=True)
                 
-                st.write("---")
+                st.plotly_chart(fig_hourly, use_container_width=True)
                 
                 # Gráfico de barras por máquina (se "Todas" selecionado)
                 if sel_maquina == "Todas":
@@ -1174,17 +1195,18 @@ with col_meio:
                     df_mac = df_oee.groupby('maquina')['oee'].mean().sort_values(ascending=False).reset_index()
                     fig_mac = px.bar(df_mac, x='maquina', y='oee', color='oee', 
                                     text='oee',
-                                    color_continuous_scale='Viridis',
+                                    color_continuous_scale=['#0a1929', '#00d2ff', '#3a7bd5'],
                                     labels={'oee': 'OEE Médio', 'maquina': 'Máquina'})
-                    fig_mac.update_traces(texttemplate='%{text:.1%}', textposition='outside')
+                    fig_mac.update_traces(texttemplate='%{text:.1%}', textposition='outside', hovertemplate='%{y:.1%}')
                     fig_mac.update_layout(
                         yaxis_visible=False, 
                         coloraxis_showscale=False,
                         height=450,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
                         margin=dict(t=50, b=50, l=0, r=0)
                     )
                     st.plotly_chart(fig_mac, use_container_width=True)
-                st.write("---")
                 
                 # Novos Gráficos Solicitados
                 col_a, col_b = st.columns(2)
@@ -1194,10 +1216,17 @@ with col_meio:
                     df_shift = df_oee.groupby('turno')[['oee', 'teep']].mean().reset_index()
                     fig_shift = px.bar(df_shift, x='turno', y=['oee', 'teep'], barmode='group',
                                       text_auto='.1%',
-                                      labels={'value': '', 'variable': 'Métrica'},
+                                      labels={'value': '', 'variable': '', 'turno': ''},
                                       color_discrete_sequence=['#3a7bd5', '#00d2ff'])
-                    fig_shift.update_layout(yaxis_visible=False, height=350, margin=dict(t=30, b=30, l=0, r=0),
-                                           legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
+                    fig_shift.update_traces(hovertemplate='%{y:.1%}')
+                    fig_shift.update_layout(
+                        yaxis_visible=False, height=350,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(t=30, b=30, l=0, r=0),
+                        legend_title_text='',
+                        legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                    )
                     st.plotly_chart(fig_shift, use_container_width=True)
                 
                 with col_b:
@@ -1206,10 +1235,15 @@ with col_meio:
                                          hover_data=['maquina', 'hora'],
                                          labels={'teep': 'TEEP', 'oee': 'OEE'},
                                          color_discrete_sequence=['#3a7bd5', '#00d2ff'])
-                    fig_scat.update_layout(height=350, margin=dict(t=30, b=30, l=0, r=0))
+                    fig_scat.update_traces(hovertemplate='TEEP: %{x:.1%}<br>OEE: %{y:.1%}')
+                    fig_scat.update_layout(
+                        height=350,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(t=30, b=30, l=40, r=20),
+                        legend_title_text=''
+                    )
                     st.plotly_chart(fig_scat, use_container_width=True)
-                
-                st.write("---")
                 
                 col_c, col_d = st.columns(2)
                 
@@ -1221,7 +1255,13 @@ with col_meio:
                     fig_loss = px.bar(df_comp, x='Fator', y='Valor', color='Fator',
                                      text_auto='.1%',
                                      color_discrete_sequence=['#3a7bd5', '#00d2ff', '#4facfe'])
-                    fig_loss.update_layout(yaxis_visible=False, showlegend=False, height=350, margin=dict(t=30, b=30, l=0, r=0))
+                    fig_loss.update_traces(hovertemplate='%{y:.1%}')
+                    fig_loss.update_layout(
+                        yaxis_visible=False, showlegend=False, height=350,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(t=30, b=30, l=0, r=0)
+                    )
                     st.plotly_chart(fig_loss, use_container_width=True)
                 
                 with col_d:
@@ -1234,27 +1274,39 @@ with col_meio:
                     df_buckets = df_oee['faixa'].value_counts().reset_index()
                     df_buckets.columns = ['Faixa', 'Quantidade']
                     fig_buckets = px.pie(df_buckets, values='Quantidade', names='Faixa',
-                                        hole=0.4, color_discrete_sequence=['#ff4b2b', '#ffb75e', '#56ab2f'])
-                    fig_buckets.update_layout(height=350, margin=dict(t=30, b=30, l=0, r=0),
-                                             legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5))
+                                        hole=0.4, color_discrete_sequence=['#00d2ff', '#3a7bd5', '#4facfe'])
+                    fig_buckets.update_layout(
+                        height=350,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(t=30, b=30, l=0, r=0),
+                        legend_title_text='',
+                        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                    )
                     st.plotly_chart(fig_buckets, use_container_width=True)
                 
-                st.write("---")
                 st.write("#### 4. Mapa de Calor: Consistência de OEE (Hora x Dia)")
                 # Criar matriz para Heatmap
                 df_heat = df_oee.groupby(['data', 'hora'])['oee'].mean().reset_index()
-                # Converter data para string formatada para o eixo
-                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m')
-                df_pivot = df_heat.pivot(index='hora', columns='data_str', values='oee').fillna(0)
+                
+                # Converter data para string formatada com dia da semana
+                dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m') + "<br>(" + df_heat['data'].dt.dayofweek.map(dias_semana) + ")"
+                df_pivot = df_heat.pivot(index='hora', columns='data_str', values='oee').fillna(0) * 100
                 
                 fig_heat = px.imshow(df_pivot, 
-                                    labels=dict(x="Dia", y="Hora", color="OEE"),
-                                    color_continuous_scale='RdYlGn',
+                                    labels=dict(x="", y="Hora", color="OEE %"),
+                                    color_continuous_scale=['#0a1929', '#3a7bd5', '#00d2ff'],
+                                    zmin=0, zmax=100,
                                     aspect="auto")
-                fig_heat.update_layout(height=450, margin=dict(t=30, b=30, l=0, r=0))
+                fig_heat.update_traces(hovertemplate='Dia: %{x}<br>Hora: %{y}<br>OEE: %{z:.1f}%')
+                fig_heat.update_layout(
+                    height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=30, l=40, r=40)
+                )
                 st.plotly_chart(fig_heat, use_container_width=True)
-                
-                st.write("---")
             else:
                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
         else:
