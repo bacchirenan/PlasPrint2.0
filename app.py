@@ -619,23 +619,36 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
     display: flex;
     flex-direction: row;
     justify-content: space-between; /* Distribui o espaço */
+    align-items: center;
     gap: 5px; /* Reduzido de 10px */
+    width: 100%; /* Garante uso total da largura */
+    flex-wrap: nowrap; /* IMPEDE quebra de linha */
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     background-color: transparent !important;
     padding-bottom: 0px !important;
+    overflow-x: auto; /* Permite scroll se muito pequeno, mas tentaremos encaixar */
+}
+
+/* Esconder barra de rolagem */
+[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar {
+  display: none;
 }
 
 [data-testid="stRadio"] > div[role="radiogroup"] > label {
     background: transparent !important;
-    padding: 10px 5px !important; /* Reduzido padding lateral de 15px para 5px */
+    padding: 10px 5px !important; /* Reduzido padding lateral */
     cursor: pointer !important;
     border-radius: 5px 5px 0 0 !important;
     transition: all 0.3s !important;
-    flex-grow: 1 !important; /* Faz ocupar a largura */
+    flex: 1 1 auto; /* Permite crescer e encolher */
+    min-width: 0; /* Permite encolher abaixo do conteúdo se necessário */
     text-align: center !important;
     justify-content: center !important;
     margin-right: 0px !important;
     border: none !important;
+    white-space: nowrap; /* Mantém texto em uma linha */
+    overflow: hidden;
+    text-overflow: ellipsis; /* ... se cortar muito */
 }
 
 /* Esconder bolinha do radio */
@@ -645,10 +658,23 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
 
 /* Texto do item */
 [data-testid="stRadio"] > div[role="radiogroup"] > label > div[data-testid="stMarkdownContainer"] p {
-    font-size: 0.9rem !important; /* Reduzido de 1.1rem */
+    font-size: 0.9rem !important;
     font-weight: bold !important;
     color: rgba(255, 255, 255, 0.6) !important;
     margin: 0 !important;
+}
+
+/* --- RESPONSIVIDADE (MOBILE) --- */
+@media (max-width: 600px) {
+    [data-testid="stRadio"] > div[role="radiogroup"] {
+        gap: 2px;
+    }
+    [data-testid="stRadio"] > div[role="radiogroup"] > label {
+        padding: 5px 2px !important;
+    }
+    [data-testid="stRadio"] > div[role="radiogroup"] > label > div[data-testid="stMarkdownContainer"] p {
+        font-size: 0.7rem !important; /* Fonte menor no celular */
+    }
 }
 
 /* Hover */
@@ -821,6 +847,7 @@ def load_producao_data():
                 v = int(float(val))
                 if v == 1: return 'Turno A'
                 if v == 2: return 'Turno B'
+                if v == 3: return 'Turno C'
             except:
                 pass
             return str(val)
@@ -1787,8 +1814,126 @@ with col_meio:
                 st.plotly_chart(fig_prod_maq, use_container_width=True)
                 
                 st.write("---")
-                st.write("#### Detalhes de Produção")
-                st.dataframe(df_prod, use_container_width=True, hide_index=True)
+                
+                # --- NOVOS GRÁFICOS ---
+                
+                # 2. Evolução Horária (Linha) -> Agora Barra
+                st.write("#### Evolução Horária da Produção")
+                df_hourly_prod = df_prod.groupby('hora')['pecas_boas'].sum().reset_index()
+                # Filtrar apenas das 06 às 22
+                df_hourly_prod = df_hourly_prod[(df_hourly_prod['hora'] >= 6) & (df_hourly_prod['hora'] <= 22)]
+                
+                fig_hourly_prod = px.bar(df_hourly_prod, x='hora', y='pecas_boas',
+                                         labels={'pecas_boas': 'Peças Boas', 'hora': 'Hora'},
+                                         color_discrete_sequence=['#00adef']) # Usando Cyan para destaque
+                fig_hourly_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=350,
+                    margin=dict(t=20, b=40, l=0, r=0)
+                )
+                st.plotly_chart(fig_hourly_prod, use_container_width=True)
+                
+                # 3. Ranking de Operadores (Filtrado)
+                st.write("#### Ranking de Operadores")
+                target_ops = ["Marcus Vinicius", "Yuri Franco", "Diego Matheus", "Matheus Anzolin"]
+                # Filtrar apenas os operadores solicitados. Normalizar para evitar problemas de case se necessário
+                df_op_prod = df_prod[df_prod['operador'].astype(str).str.strip().isin(target_ops)]
+                
+                if df_op_prod.empty:
+                     # Fallback caso os nomes não batam exatamente, tenta busca parcial ou mostra todos
+                     df_op_prod = df_prod[df_prod['operador'].astype(str).str.contains('|'.join(target_ops), case=False, na=False)]
+                
+                # Agrupar e ordenar
+                df_op_prod_grouped = df_op_prod.groupby('operador')['pecas_boas'].sum().reset_index().sort_values('pecas_boas', ascending=True)
+
+                fig_op = px.bar(df_op_prod_grouped, x='pecas_boas', y='operador', orientation='h',
+                               text='pecas_boas',
+                               labels={'pecas_boas': '', 'operador': ''},
+                               color_discrete_sequence=['#4466b1']) # Medium Blue
+                fig_op.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                fig_op.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=400,
+                    xaxis_visible=False,
+                    margin=dict(t=30, b=0, l=0, r=0)
+                )
+                st.plotly_chart(fig_op, use_container_width=True)
+                    
+                
+                # 4. Comparativo de Turnos (Nova Linha)
+                st.write("#### Comparativo de Turnos")
+                df_shift_prod = df_prod.groupby('turno')['pecas_boas'].sum().reset_index().sort_values('turno') # Ordenar alfabeticamente (A, B, C)
+                
+                fig_shift_prod = px.pie(df_shift_prod, values='pecas_boas', names='turno',
+                                       color='turno',
+                                       color_discrete_sequence=['#4466b1', '#00adef', '#09a38c'], # Blue/Cyan mix
+                                       hole=0.5)
+                fig_shift_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=400,
+                    margin=dict(t=30, b=20, l=0, r=0),
+                    legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_shift_prod, use_container_width=True)
+                    
+                st.write("---")
+                
+                # 5. Top Produtos
+                st.write("#### Top Produtos Mais Fabricados")
+                
+                # Função de limpeza de nome
+                def clean_prod_name(name):
+                    if not isinstance(name, str): return str(name)
+                    # 1. Remover código antes do primeiro " - "
+                    if ' - ' in name:
+                        name = name.split(' - ', 1)[1]
+                    
+                    # 2. Separar letras de números (ex: Facil530 -> Facil 530)
+                    name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+                    # 2b. Separar números de unidades/letras (ex: 530ML -> 530 ML)
+                    name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+                    
+                    # 3. Remover palavras desnecessárias (Inicio e fim)
+                    name = name.lower()
+                    name = name.replace('corpo ', '').replace('garrafa ', '')
+                    name = name.replace(' 2023', '').replace(' 2024', '')
+                    
+                    # 4. Formatação Title Case
+                    name = name.title()
+                    
+                    # 5. Ajustes finos de unidade e pontuação
+                    # Forçar 'ml' e 'mm' minúsculos ignorando o Title Case anterior
+                    name = re.sub(r'\b[mM][lL]\b', 'ml', name)
+                    name = re.sub(r'\b[mM][mM]\b', 'mm', name)
+                    
+                    name = name.replace(' - ', ' ') # Remover hifens restantes
+                    
+                    return name.strip()
+
+                df_top_prod = df_prod.groupby('produto')['pecas_boas'].sum().reset_index().sort_values('pecas_boas', ascending=False).head(10)
+                df_top_prod['produto_label'] = df_top_prod['produto'].apply(clean_prod_name)
+                
+                fig_top_prod = px.bar(df_top_prod, x='pecas_boas', y='produto_label', orientation='h',
+                                     text='pecas_boas',
+                                     color='pecas_boas',
+                                     color_continuous_scale=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
+                                     labels={'pecas_boas': '', 'produto_label': ''})
+                                     
+                fig_top_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    yaxis={'categoryorder':'total ascending'}, # Garante maior em cima
+                    height=500,
+                    coloraxis_showscale=False,
+                    xaxis_visible=True, # Mostrar eixo X para referência de volume
+                    margin=dict(t=30, b=0, l=0, r=0)
+                )
+                fig_top_prod.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
+                
+                st.plotly_chart(fig_top_prod, use_container_width=True)
                 
             else:
                  st.warning("Nenhum dado encontrado para os filtros selecionados.")
