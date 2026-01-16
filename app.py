@@ -1354,6 +1354,13 @@ with col_meio:
             if len(sel_dates) == 2:
                 df_oee = df_oee[(df_oee['data'] >= pd.Timestamp(sel_dates[0])) & (df_oee['data'] <= pd.Timestamp(sel_dates[1]))]
             
+            st.markdown("### Pergunte sobre os indicadores OEE e TEEP")
+            prompt_oee = st.chat_input("Ex: Qual máquina teve a melhor performance?", key="chat_oee")
+            if prompt_oee:
+                with st.chat_message("user"): st.markdown(prompt_oee)
+                with st.chat_message("assistant"):
+                    process_chat_request(prompt_oee, {"oee_teep": df_oee})
+            
             if not df_oee.empty:
                 # Métricas principais
                 m1, m2 = st.columns(2)
@@ -1490,6 +1497,7 @@ with col_meio:
                     xaxis_tickangle=-45
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
+
             else:
                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
         else:
@@ -1526,6 +1534,13 @@ with col_meio:
                     df_can = df_can[(df_can['data'] >= pd.Timestamp(sel_dates[0])) & (df_can['data'] <= pd.Timestamp(sel_dates[1]))]
                  elif len(sel_dates) == 1: # Caso selecione apenas uma data início
                     df_can = df_can[df_can['data'] >= pd.Timestamp(sel_dates[0])]
+             
+             st.markdown("### Pergunte sobre os dados de Canudos")
+             prompt_can = st.chat_input("Ex: Qual turno produziu mais peças boas?", key="chat_canudos")
+             if prompt_can:
+                with st.chat_message("user"): st.markdown(prompt_can)
+                with st.chat_message("assistant"):
+                    process_chat_request(prompt_can, {"canudos": df_can})
              
              st.write("---")
 
@@ -1645,7 +1660,7 @@ with col_meio:
                                 color_discrete_sequence=['#1a335f', '#00adef', '#89c153']) # Dark Blue first for losses logic (optional variation)
                  fig_lt.update_traces(textposition='inside', textinfo='percent+label')
                  fig_lt.update_layout(
-                     paper_bgcolor='rgba(0,0,0,0)', 
+                     paper_bgcolor='rgba(0,0,0,0)',
                      plot_bgcolor='rgba(0,0,0,0)', 
                      height=350
                  )
@@ -1988,6 +2003,13 @@ with col_meio:
             if len(sel_dates_prod) == 2:
                 df_prod = df_prod[(df_prod['data'] >= pd.Timestamp(sel_dates_prod[0])) & (df_prod['data'] <= pd.Timestamp(sel_dates_prod[1]))]
 
+            st.markdown("### Pergunte sobre os dados de Produção")
+            prompt_prod = st.chat_input("Ex: Quem foi o operador mais produtivo hoje?", key="chat_producao")
+            if prompt_prod:
+               with st.chat_message("user"): st.markdown(prompt_prod)
+               with st.chat_message("assistant"):
+                   process_chat_request(prompt_prod, {"producao": df_prod})
+
             if not df_prod.empty:
                 # --- Métricas Gerais ---
                 total_pecas = df_prod['producao_total'].sum()
@@ -2187,6 +2209,7 @@ with col_meio:
                 fig_top_prod.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
                 
                 st.plotly_chart(fig_top_prod, use_container_width=True)
+
                 
             else:
                  st.warning("Nenhum dado encontrado para os filtros selecionados.")
