@@ -613,6 +613,61 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
 .stButton, .stTextInput, .stFileUploader, .stChatMessage {
     transition: background-color 0.2s ease, transform 0.2s ease !important;
 }
+
+/* --- TRANSFORMAR RADIO EM ABAS (RESTAURANDO O VISUAL) --- */
+[data-testid="stRadio"] > div[role="radiogroup"] {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between; /* Distribui o espaço */
+    gap: 5px; /* Reduzido de 10px */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: transparent !important;
+    padding-bottom: 0px !important;
+}
+
+[data-testid="stRadio"] > div[role="radiogroup"] > label {
+    background: transparent !important;
+    padding: 10px 5px !important; /* Reduzido padding lateral de 15px para 5px */
+    cursor: pointer !important;
+    border-radius: 5px 5px 0 0 !important;
+    transition: all 0.3s !important;
+    flex-grow: 1 !important; /* Faz ocupar a largura */
+    text-align: center !important;
+    justify-content: center !important;
+    margin-right: 0px !important;
+    border: none !important;
+}
+
+/* Esconder bolinha do radio */
+[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child {
+    display: none !important;
+}
+
+/* Texto do item */
+[data-testid="stRadio"] > div[role="radiogroup"] > label > div[data-testid="stMarkdownContainer"] p {
+    font-size: 0.9rem !important; /* Reduzido de 1.1rem */
+    font-weight: bold !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin: 0 !important;
+}
+
+/* Hover */
+[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+[data-testid="stRadio"] > div[role="radiogroup"] > label:hover > div[data-testid="stMarkdownContainer"] p {
+    color: white !important;
+}
+
+/* Ítem Selecionado (Simulando a aba ativa) */
+[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) {
+    border-bottom: 3px solid #00d2ff !important;
+    background-color: rgba(0, 210, 255, 0.08) !important;
+}
+
+[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) > div[data-testid="stMarkdownContainer"] p {
+    color: #00d2ff !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -713,8 +768,73 @@ def load_oee_data():
         new_df['turno'] = new_df['turno'].apply(rename_shift)
         
         return new_df
+        return new_df
     except Exception as e:
         st.error(f"Erro ao carregar oee teep.xlsx: {e}")
+        return pd.DataFrame()
+
+def load_producao_data():
+    try:
+        # Pular as primeiras 3 linhas (cabeçalhos na linha 3, dados começam na 4)
+        # header=None porque a linha 4 é DADO e não cabeçalho
+        df = pd.read_excel('producao.xlsx', skiprows=3, header=None)
+        
+        # Mapeamento Solicitado (Revisado):
+        # B (1): Máquina
+        # C (2): Data
+        # F (5): Hora
+        # G (6): Turno
+        # H (7): Registro
+        # I (8): OS
+        # J (9): Produto (Implícito/Contexto)
+        # K (10): Operador
+        # O (14): Produção Total
+        # P (15): Rejeito
+        # Q (16): Peças Boas
+        
+        new_df = pd.DataFrame()
+        new_df['maquina'] = df.iloc[:, 1]
+        new_df['data'] = df.iloc[:, 2]
+        new_df['hora'] = df.iloc[:, 5]
+        new_df['turno_cod'] = df.iloc[:, 6]
+        new_df['registro'] = df.iloc[:, 7]
+        new_df['os'] = df.iloc[:, 8]
+        new_df['produto'] = df.iloc[:, 9]
+        new_df['operador'] = df.iloc[:, 10]
+        # Ignore L(11), M(12), N(13)
+        new_df['producao_total'] = df.iloc[:, 14]
+        new_df['rejeito'] = df.iloc[:, 15]
+        new_df['pecas_boas'] = df.iloc[:, 16]
+        
+        # Limpezas básicas
+        new_df = new_df[new_df['maquina'].notna()]
+        new_df = new_df[~new_df['maquina'].astype(str).str.contains('Turno', na=False, case=False)]
+        new_df = new_df[new_df['data'].notna()]
+        
+        # Converter data
+        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, errors='coerce')
+        new_df = new_df.dropna(subset=['data'])
+        
+        # Mapear turno
+        def map_shift(val):
+            try:
+                v = int(float(val))
+                if v == 1: return 'Turno A'
+                if v == 2: return 'Turno B'
+            except:
+                pass
+            return str(val)
+            
+        new_df['turno'] = new_df['turno_cod'].apply(map_shift)
+        
+        # Converter numéricos
+        cols_num = ['producao_total', 'rejeito', 'pecas_boas']
+        for c in cols_num:
+            new_df[c] = pd.to_numeric(new_df[c], errors='coerce').fillna(0)
+            
+        return new_df
+    except Exception as e:
+        st.warning(f"Erro ao carregar producao.xlsx: {e}")
         return pd.DataFrame()
 
 def refresh_data():
@@ -745,6 +865,10 @@ def refresh_data():
     status_text.text('Carregando dados OEE/TEEP...')
     progress_bar.progress(0.85)
     st.session_state.oee_df = load_oee_data()
+    
+    status_text.text('Carregando dados de Produção...')
+    progress_bar.progress(0.90)
+    st.session_state.producao_df = load_producao_data()
 
     status_text.text('Calculando custos financeiros...')
     progress_bar.progress(0.95)
@@ -906,7 +1030,9 @@ st.sidebar.write("trabalhos:", len(st.session_state.get("trabalhos_df", [])))
 st.sidebar.write("dacen:", len(st.session_state.get("dacen_df", [])))
 st.sidebar.write("psi:", len(st.session_state.get("psi_df", [])))
 st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
+st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
 st.sidebar.write("oee/teep:", len(st.session_state.get("oee_df", [])))
+st.sidebar.write("produção:", len(st.session_state.get("producao_df", [])))
 
 if st.sidebar.button("Atualizar Dados"):
     with st.spinner('Atualizando dados...'):
@@ -1043,11 +1169,24 @@ with col_dir:
 
 with col_meio:
 
-    tab_chat, tab_financeiro, tab_analitico, tab_oee, tab_config = st.tabs([
-        "Assistente IA", "Custo", "Analítico", "Oee e Teep", "Configurações"
-    ])
+    # --- Navegação Persistente (Substituindo st.tabs para corrigir reset) ---
+    tabs_labels = ["Assistente IA", "Custo", "Analítico", "Produção", "Oee e Teep", "Configurações"]
+    
+    # Inicializar estado se não existir
+    if "nav_tab" not in st.session_state:
+        st.session_state.nav_tab = tabs_labels[0]
 
-    with tab_config:
+    # Menu de navegação (estilo botões/abas)
+    selected_tab = st.radio(
+        "", 
+        tabs_labels, 
+        horizontal=True, 
+        label_visibility="collapsed",
+        key="nav_tab"
+    )
+    st.markdown("---")
+
+    if selected_tab == "Configurações":
         st.markdown("### Custos de Tintas (USD)")
         
         
@@ -1110,7 +1249,7 @@ with col_meio:
                 except Exception as e:
                     st.error(f"❌ Erro ao salvar: {e}")
 
-    with tab_oee:
+    if selected_tab == "Oee e Teep":
         st.subheader("Indicadores de Eficiência (OEE/TEEP)")
         
         if not st.session_state.get("oee_df", pd.DataFrame()).empty:
@@ -1152,7 +1291,7 @@ with col_meio:
                 
                 fig_line = px.line(df_daily, x='data_label', y=['oee', 'teep'], 
                                   labels={'value': '', 'data_label': '', 'variable': ''},
-                                  color_discrete_sequence=['#3a7bd5', '#00d2ff'])
+                                  color_discrete_sequence=['#4466b1', '#00adef'])
                 fig_line.update_traces(hovertemplate='%{y:.1%}')
                 fig_line.update_layout(
                     yaxis_tickformat='.1%', 
@@ -1174,7 +1313,7 @@ with col_meio:
                                    barmode='group',
                                    text='Valor',
                                    labels={'Valor': '', 'hora': 'Hora', 'Métrica': ''},
-                                   color_discrete_sequence=['#3a7bd5', '#00d2ff'])
+                                   color_discrete_sequence=['#4466b1', '#00adef'])
                 
                 fig_hourly.update_traces(texttemplate='%{text:.1%}', textposition='outside', hovertemplate='%{y:.1%}')
                 fig_hourly.update_layout(
@@ -1195,7 +1334,7 @@ with col_meio:
                     df_mac = df_oee.groupby('maquina')['oee'].mean().sort_values(ascending=False).reset_index()
                     fig_mac = px.bar(df_mac, x='maquina', y='oee', color='oee', 
                                     text='oee',
-                                    color_continuous_scale=['#0a1929', '#00d2ff', '#3a7bd5'],
+                                    color_continuous_scale=['#0a1929', '#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
                                     labels={'oee': 'OEE Médio', 'maquina': 'Máquina'})
                     fig_mac.update_traces(texttemplate='%{text:.1%}', textposition='outside', hovertemplate='%{y:.1%}')
                     fig_mac.update_layout(
@@ -1217,7 +1356,7 @@ with col_meio:
                     fig_shift = px.bar(df_shift, x='turno', y=['oee', 'teep'], barmode='group',
                                       text_auto='.1%',
                                       labels={'value': '', 'variable': '', 'turno': ''},
-                                      color_discrete_sequence=['#3a7bd5', '#00d2ff'])
+                                      color_discrete_sequence=['#4466b1', '#00adef'])
                     fig_shift.update_traces(hovertemplate='%{y:.1%}')
                     fig_shift.update_layout(
                         yaxis_visible=False, height=350,
@@ -1234,7 +1373,7 @@ with col_meio:
                     fig_scat = px.scatter(df_oee, x='teep', y='oee', color='turno',
                                          hover_data=['maquina', 'hora'],
                                          labels={'teep': 'TEEP', 'oee': 'OEE'},
-                                         color_discrete_sequence=['#3a7bd5', '#00d2ff'])
+                                         color_discrete_sequence=['#00adef', '#09a38c', '#89c153', '#4466b1', '#1a335f'])
                     fig_scat.update_traces(hovertemplate='TEEP: %{x:.1%}<br>OEE: %{y:.1%}')
                     fig_scat.update_layout(
                         height=350,
@@ -1254,7 +1393,7 @@ with col_meio:
                     df_comp.columns = ['Fator', 'Valor']
                     fig_loss = px.bar(df_comp, x='Fator', y='Valor', color='Fator',
                                      text_auto='.1%',
-                                     color_discrete_sequence=['#3a7bd5', '#00d2ff', '#4facfe'])
+                                     color_discrete_sequence=['#1a335f', '#09a38c', '#89c153'])
                     fig_loss.update_traces(hovertemplate='%{y:.1%}')
                     fig_loss.update_layout(
                         yaxis_visible=False, showlegend=False, height=350,
@@ -1274,7 +1413,7 @@ with col_meio:
                     df_buckets = df_oee['faixa'].value_counts().reset_index()
                     df_buckets.columns = ['Faixa', 'Quantidade']
                     fig_buckets = px.pie(df_buckets, values='Quantidade', names='Faixa',
-                                        hole=0.4, color_discrete_sequence=['#00d2ff', '#3a7bd5', '#4facfe'])
+                                        hole=0.4, color_discrete_sequence=['#89c153', '#00adef', '#1a335f'])
                     fig_buckets.update_layout(
                         height=350,
                         paper_bgcolor='rgba(0,0,0,0)',
@@ -1291,12 +1430,12 @@ with col_meio:
                 
                 # Converter data para string formatada com dia da semana
                 dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
-                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m') + "<br>(" + df_heat['data'].dt.dayofweek.map(dias_semana) + ")"
+                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m') + " (" + df_heat['data'].dt.dayofweek.map(dias_semana) + ")"
                 df_pivot = df_heat.pivot(index='hora', columns='data_str', values='oee').fillna(0) * 100
                 
                 fig_heat = px.imshow(df_pivot, 
                                     labels=dict(x="", y="Hora", color="OEE %"),
-                                    color_continuous_scale=['#0a1929', '#3a7bd5', '#00d2ff'],
+                                    color_continuous_scale=['#0a1929', '#1a335f', '#4466b1', '#09a38c', '#89c153'],
                                     zmin=0, zmax=100,
                                     aspect="auto")
                 fig_heat.update_traces(hovertemplate='Dia: %{x}<br>Hora: %{y}<br>OEE: %{z:.1f}%')
@@ -1304,7 +1443,8 @@ with col_meio:
                     height=450,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(t=30, b=30, l=40, r=40)
+                    margin=dict(t=30, b=30, l=40, r=40),
+                    xaxis_tickangle=-45
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
             else:
@@ -1312,7 +1452,7 @@ with col_meio:
         else:
             st.info("Carregue o arquivo 'oee teep.xlsx' para visualizar as métricas de eficiência.")
 
-    with tab_chat:
+    if selected_tab == "Assistente IA":
         # Input do chat
         prompt = st.chat_input("Qual a sua dúvida?")
 
@@ -1343,7 +1483,7 @@ with col_meio:
 
 
 
-    with tab_financeiro:
+    if selected_tab == "Custo":
         st.subheader("Visão de Custos por Produto")
         
         if not st.session_state.trabalhos_df.empty:
@@ -1377,7 +1517,7 @@ with col_meio:
             fig_top10 = px.bar(df_top10, x='custo_total_tinta_mil', y='label', orientation='h',
                               text='custo_total_tinta_mil', color='produto', 
                               labels={'custo_total_tinta_mil': 'Custo (R$)', 'label': 'Produto (Decoração)'},
-                              color_discrete_sequence=px.colors.qualitative.Plotly,
+                              color_discrete_sequence=['#4466b1', '#00adef', '#09a38c', '#89c153'],
                               category_orders={"label": df_top10['label'].tolist()}) # Forçar a ordem exata do DF
             
             fig_top10.update_traces(
@@ -1392,6 +1532,8 @@ with col_meio:
                 showlegend=False,
                 xaxis_visible=False,
                 coloraxis_showscale=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
                 yaxis={'categoryorder':'array', 'categoryarray': df_top10['label'].tolist()}
             )
             st.plotly_chart(fig_top10, use_container_width=True)
@@ -1407,7 +1549,7 @@ with col_meio:
             )
             
             # (Removido sugestão de formação de preço conforme solicitado)
-    with tab_analitico:
+    if selected_tab == "Analítico":
         st.subheader("Análise de Performance e Consumo")
         
         if not st.session_state.trabalhos_df.empty:
@@ -1439,14 +1581,13 @@ with col_meio:
                 cons_cor = df_ana[cores].sum().reset_index()
                 cons_cor.columns = ['Cor', 'Volume']
                 fig_pie = px.pie(cons_cor, values='Volume', names='Cor', color='Cor',
-                               color_discrete_map={
-                                   'cyan': '#00BFFF', 'magenta': '#FF00FF', 
-                                   'yellow': '#FFFF00', 'black': '#444444',
-                                   'white': '#FFFFFF', 'varnish': '#C0C0C0'
-                               }, hole=0.4)
+                               color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
+                               hole=0.4)
                 fig_pie.update_layout(
                     margin=dict(t=20, b=80, l=0, r=0), 
                     height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_pie, use_container_width=True)
@@ -1455,11 +1596,14 @@ with col_meio:
                 st.write("#### Mix de Produtos (Qtd de Fichas)")
                 prod_counts = df_ana['produto'].value_counts().reset_index()
                 prod_counts.columns = ['produto', 'quantidade']
-                fig_prod = px.pie(prod_counts, values='quantidade', names='produto', hole=0.4)
+                fig_prod = px.pie(prod_counts, values='quantidade', names='produto', hole=0.4,
+                                 color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'])
                 fig_prod.update_traces(textinfo='percent')
                 fig_prod.update_layout(
                     margin=dict(t=20, b=80, l=0, r=0), 
                     height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_prod, use_container_width=True)
@@ -1471,12 +1615,12 @@ with col_meio:
             avg_cons = df_ana[cores].mean().reset_index()
             avg_cons.columns = ['Cor', 'Média de Consumo']
             fig_bar = px.bar(avg_cons, x='Cor', y='Média de Consumo', color='Cor',
-                            color_discrete_map={
-                                'cyan': '#00BFFF', 'magenta': '#FF00FF', 
-                                'yellow': '#FFFF00', 'black': '#444444',
-                                'white': '#FFFFFF', 'varnish': '#C0C0C0'
-                            })
-            fig_bar.update_layout(showlegend=False)
+                            color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'])
+            fig_bar.update_layout(
+                showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+            )
             st.plotly_chart(fig_bar, use_container_width=True)
 
             st.write("---")
@@ -1484,9 +1628,13 @@ with col_meio:
             # 3. TreeMap (Hierarquia de Consumo)
             st.write("#### Hierarquia de Consumo (Decoração > Produto)")
             fig_tree = px.treemap(df_ana, path=['decoracao', 'produto'], values='total_ml',
-                                 color='total_ml', color_continuous_scale='Viridis',
+                                 color='total_ml', color_continuous_scale=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
                                  labels={'total_ml': '', 'decoracao': 'Decoração', 'produto': 'Produto'})
-            fig_tree.update_layout(coloraxis_showscale=False)
+            fig_tree.update_layout(
+                coloraxis_showscale=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+            )
             st.plotly_chart(fig_tree, use_container_width=True)
 
             st.write("---")
@@ -1557,6 +1705,96 @@ with col_meio:
 
         else:
             st.info("Nenhum dado disponível para análise analítica.")
+
+    if selected_tab == "Produção":
+        st.subheader("Controle de Produção")
+        
+        if not st.session_state.get("producao_df", pd.DataFrame()).empty:
+            df_prod = st.session_state.producao_df.copy()
+            
+            # --- Filtros (Igual OEE) ---
+            st.markdown("#### Filtros")
+            c1, c2 = st.columns(2)
+            with c1:
+                maquinas_prod = ["Todas"] + sorted(df_prod['maquina'].unique().tolist())
+                sel_maquina_prod = st.selectbox("Máquina", maquinas_prod, key="prod_maq")
+            with c2:
+                if not df_prod['data'].empty:
+                    min_date_prod = df_prod['data'].min()
+                    max_date_prod = df_prod['data'].max()
+                    sel_dates_prod = st.date_input("Período", value=(min_date_prod, max_date_prod), min_value=min_date_prod, max_value=max_date_prod, key="prod_date")
+                else:
+                    sel_dates_prod = []
+
+            # Aplicação dos filtros
+            if sel_maquina_prod != "Todas":
+                df_prod = df_prod[df_prod['maquina'] == sel_maquina_prod]
+            
+            if len(sel_dates_prod) == 2:
+                df_prod = df_prod[(df_prod['data'] >= pd.Timestamp(sel_dates_prod[0])) & (df_prod['data'] <= pd.Timestamp(sel_dates_prod[1]))]
+
+            if not df_prod.empty:
+                # --- Métricas Gerais ---
+                total_pecas = df_prod['producao_total'].sum()
+                total_boas = df_prod['pecas_boas'].sum()
+                total_rejeito = df_prod['rejeito'].sum()
+                
+                # Evitar divisão por zero
+                perc_boas = (total_boas / total_pecas) if total_pecas > 0 else 0
+                perc_rejeito = (total_rejeito / total_pecas) if total_pecas > 0 else 0
+
+                # Linha 1: Contagens Absolutas
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("Total de Peças", f"{total_pecas:,.0f}".replace(",", "."))
+                with c2:
+                    st.metric("Peças Boas", f"{total_boas:,.0f}".replace(",", "."))
+                with c3:
+                    st.metric("Rejeitos", f"{total_rejeito:,.0f}".replace(",", "."))
+                
+                # Linha 2: Porcentagens
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    st.metric("% Peças Boas", f"{perc_boas:.1%}")
+                with c5:
+                    st.metric("% Rejeitos", f"{perc_rejeito:.1%}")
+                with c6:
+                    st.empty() # Espaço vazio para manter alinhamento
+                    
+                st.write("---")
+                
+                # 1. Gráfico de Peças Produzidas por Máquina
+                st.write("#### Peças Produzidas Por Máquina")
+                
+                # Agrupar por máquina
+                df_maq_prod = df_prod.groupby('maquina')['pecas_boas'].sum().reset_index().sort_values('pecas_boas', ascending=False)
+                
+                fig_prod_maq = px.bar(df_maq_prod, x='maquina', y='pecas_boas', color='maquina',
+                                     text='pecas_boas',
+                                     labels={'pecas_boas': 'Peças Boas', 'maquina': 'Máquina'},
+                                     # Usando a paleta de 5 cores
+                                     color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'])
+                                     
+                fig_prod_maq.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                fig_prod_maq.update_layout(
+                    yaxis_visible=False,
+                    showlegend=False,
+                    height=500,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=50, l=0, r=0)
+                )
+                st.plotly_chart(fig_prod_maq, use_container_width=True)
+                
+                st.write("---")
+                st.write("#### Detalhes de Produção")
+                st.dataframe(df_prod, use_container_width=True, hide_index=True)
+                
+            else:
+                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
+            
+        else:
+            st.info("Carregue o arquivo 'producao.xlsx' para visualizar os dados.")
 
 
 # Footer
