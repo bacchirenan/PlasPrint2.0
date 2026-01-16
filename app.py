@@ -623,7 +623,6 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
     gap: 5px; /* Reduzido de 10px */
     width: 100%; /* Garante uso total da largura */
     flex-wrap: nowrap; /* IMPEDE quebra de linha */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     background-color: transparent !important;
     padding-bottom: 0px !important;
     overflow-x: auto; /* Permite scroll se muito pequeno, mas tentaremos encaixar */
@@ -864,6 +863,41 @@ def load_producao_data():
         st.warning(f"Erro ao carregar producao.xlsx: {e}")
         return pd.DataFrame()
 
+
+def load_canudos_data():
+    """Carrega dados de Canudos.xlsx"""
+    try:
+        # A=0 (Data), B=1 (Turno), C=2 (OS), D=3 (Op), E=4 (Boas), F=5 (Perdas)
+        df = pd.read_excel("Canudos.xlsx", header=None, usecols="A:F")
+        target_cols = [0, 1, 2, 3, 4, 5]
+        
+        # Selecionar apenas as colunas desejadas (caso force indices)
+        new_df = df.iloc[:, target_cols].copy()
+        new_df.columns = ['data', 'turno', 'os', 'operador', 'pecas_boas', 'perdas']
+        
+        # Limpeza e Conversão
+        new_df['data'] = pd.to_datetime(new_df['data'], errors='coerce')
+        new_df = new_df.dropna(subset=['data']) # Remove linhas sem data (cabeçalho se houver)
+        
+        # Extrair Hora (se houver informação de tempo)
+        new_df['hora'] = new_df['data'].dt.hour.fillna(0).astype(int)
+
+        # Mapeamento de Operadores
+        map_op = {8502: 'Pedro', 8524: 'Leonardo'}
+        # Converter para numérico primeiro para garantir match no dict
+        new_df['operador_cod'] = pd.to_numeric(new_df['operador'], errors='coerce')
+        new_df['operador_nome'] = new_df['operador_cod'].map(map_op).fillna(new_df['operador'])
+        
+        # Converter métricas
+        cols_num = ['pecas_boas', 'perdas']
+        for c in cols_num:
+            new_df[c] = pd.to_numeric(new_df[c], errors='coerce').fillna(0)
+            
+        return new_df
+    except Exception as e:
+        # st.warning(f"Aviso: Canudos.xlsx não encontrado ou erro de leitura: {e}") # Silencioso no startup
+        return pd.DataFrame()
+
 def refresh_data():
     """Atualiza todos os dados com feedback visual de progresso"""
     progress_bar = st.sidebar.progress(0)
@@ -896,6 +930,10 @@ def refresh_data():
     status_text.text('Carregando dados de Produção...')
     progress_bar.progress(0.90)
     st.session_state.producao_df = load_producao_data()
+
+    status_text.text('Carregando dados de Canudos...')
+    progress_bar.progress(0.92)
+    st.session_state.canudos_df = load_canudos_data()
 
     status_text.text('Calculando custos financeiros...')
     progress_bar.progress(0.95)
@@ -949,7 +987,7 @@ def process_chat_request(prompt, dfs, image=None):
         progress_bar.progress(0.20)
         
         with status_container:
-            st.info('Processando dados das planilhas...')
+            st.info('Processando...')
         progress_bar.progress(0.40)
         context = build_context(dfs)
         
@@ -1197,7 +1235,7 @@ with col_dir:
 with col_meio:
 
     # --- Navegação Persistente (Substituindo st.tabs para corrigir reset) ---
-    tabs_labels = ["Assistente IA", "Custo", "Analítico", "Produção", "Oee e Teep", "Configurações"]
+    tabs_labels = ["Assistente IA", "Custo", "Analítico", "Produção", "Oee e Teep", "Canudos", "Relatórios", "Configurações"]
     
     # Inicializar estado se não existir
     if "nav_tab" not in st.session_state:
@@ -1212,6 +1250,10 @@ with col_meio:
         key="nav_tab"
     )
     st.markdown("---")
+
+    if selected_tab == "Relatórios":
+        st.subheader("Relatórios de Produção")
+        st.info("Em desenvolvimento...")
 
     if selected_tab == "Configurações":
         st.markdown("### Custos de Tintas (USD)")
@@ -1291,7 +1333,19 @@ with col_meio:
             with c2:
                 min_date = df_oee['data'].min()
                 max_date = df_oee['data'].max()
-                sel_dates = st.date_input("Período", value=(min_date, max_date), min_value=min_date, max_value=max_date)
+                
+                # Default para Ontem
+                yesterday = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+                default_val = (yesterday, yesterday)
+                
+                # Ajustar min visual para evitar erro se base for pós-ontem
+                # min_date pode ser Timestamp, converter para date
+                if pd.notnull(min_date):
+                    visual_min = min(min_date.date(), yesterday)
+                else:
+                    visual_min = yesterday
+
+                sel_dates = st.date_input("Período", value=default_val, min_value=visual_min, max_value=max_date)
             
             # Aplicação dos filtros
             if sel_maquina != "Todas":
@@ -1375,83 +1429,45 @@ with col_meio:
                     st.plotly_chart(fig_mac, use_container_width=True)
                 
                 # Novos Gráficos Solicitados
-                col_a, col_b = st.columns(2)
+                st.write("#### Comparativo por Turno")
+                df_shift = df_oee.groupby('turno')[['oee', 'teep']].mean().reset_index()
+                fig_shift = px.bar(df_shift, x='turno', y=['oee', 'teep'], barmode='group',
+                                  text_auto='.1%',
+                                  labels={'value': '', 'variable': '', 'turno': ''},
+                                  color_discrete_sequence=['#4466b1', '#00adef'])
+                fig_shift.update_traces(hovertemplate='%{y:.1%}')
+                fig_shift.update_layout(
+                    yaxis_visible=False, height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=30, l=0, r=0),
+                    legend_title_text='',
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_shift, use_container_width=True)
                 
-                with col_a:
-                    st.write("#### 1. Comparativo por Turno")
-                    df_shift = df_oee.groupby('turno')[['oee', 'teep']].mean().reset_index()
-                    fig_shift = px.bar(df_shift, x='turno', y=['oee', 'teep'], barmode='group',
-                                      text_auto='.1%',
-                                      labels={'value': '', 'variable': '', 'turno': ''},
-                                      color_discrete_sequence=['#4466b1', '#00adef'])
-                    fig_shift.update_traces(hovertemplate='%{y:.1%}')
-                    fig_shift.update_layout(
-                        yaxis_visible=False, height=350,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(t=30, b=30, l=0, r=0),
-                        legend_title_text='',
-                        legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
-                    )
-                    st.plotly_chart(fig_shift, use_container_width=True)
+                # 5. Distribuição de Performance
+                st.write("#### Distribuição de Performance (Faixas de OEE)")
+                def get_bucket(val):
+                    if val < 0.5: return "Baixa (<50%)"
+                    if val < 0.8: return "Normal (50-80%)"
+                    return "Alta (>80%)"
+                df_oee['faixa'] = df_oee['oee'].apply(get_bucket)
+                df_buckets = df_oee['faixa'].value_counts().reset_index()
+                df_buckets.columns = ['Faixa', 'Quantidade']
+                fig_buckets = px.pie(df_buckets, values='Quantidade', names='Faixa',
+                                    hole=0.4, color_discrete_sequence=['#89c153', '#00adef', '#1a335f'])
+                fig_buckets.update_layout(
+                    height=350,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=30, l=0, r=0),
+                    legend_title_text='',
+                    legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_buckets, use_container_width=True)
                 
-                with col_b:
-                    st.write("#### 2. OEE vs TEEP (Correlação)")
-                    fig_scat = px.scatter(df_oee, x='teep', y='oee', color='turno',
-                                         hover_data=['maquina', 'hora'],
-                                         labels={'teep': 'TEEP', 'oee': 'OEE'},
-                                         color_discrete_sequence=['#00adef', '#09a38c', '#89c153', '#4466b1', '#1a335f'])
-                    fig_scat.update_traces(hovertemplate='TEEP: %{x:.1%}<br>OEE: %{y:.1%}')
-                    fig_scat.update_layout(
-                        height=350,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(t=30, b=30, l=40, r=20),
-                        legend_title_text=''
-                    )
-                    st.plotly_chart(fig_scat, use_container_width=True)
-                
-                col_c, col_d = st.columns(2)
-                
-                with col_c:
-                    st.write("#### 3. Fatores de Perda (Componentes)")
-                    # Média dos componentes
-                    df_comp = df_oee[['disponibilidade', 'performance', 'qualidade']].mean().reset_index()
-                    df_comp.columns = ['Fator', 'Valor']
-                    fig_loss = px.bar(df_comp, x='Fator', y='Valor', color='Fator',
-                                     text_auto='.1%',
-                                     color_discrete_sequence=['#1a335f', '#09a38c', '#89c153'])
-                    fig_loss.update_traces(hovertemplate='%{y:.1%}')
-                    fig_loss.update_layout(
-                        yaxis_visible=False, showlegend=False, height=350,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(t=30, b=30, l=0, r=0)
-                    )
-                    st.plotly_chart(fig_loss, use_container_width=True)
-                
-                with col_d:
-                    st.write("#### 5. Distribuição de Performance")
-                    def get_bucket(val):
-                        if val < 0.5: return "Baixa (<50%)"
-                        if val < 0.8: return "Normal (50-80%)"
-                        return "Alta (>80%)"
-                    df_oee['faixa'] = df_oee['oee'].apply(get_bucket)
-                    df_buckets = df_oee['faixa'].value_counts().reset_index()
-                    df_buckets.columns = ['Faixa', 'Quantidade']
-                    fig_buckets = px.pie(df_buckets, values='Quantidade', names='Faixa',
-                                        hole=0.4, color_discrete_sequence=['#89c153', '#00adef', '#1a335f'])
-                    fig_buckets.update_layout(
-                        height=350,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(t=30, b=30, l=0, r=0),
-                        legend_title_text='',
-                        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
-                    )
-                    st.plotly_chart(fig_buckets, use_container_width=True)
-                
-                st.write("#### 4. Mapa de Calor: Consistência de OEE (Hora x Dia)")
+                st.write("#### Mapa de Calor: Consistência de OEE (Hora x Dia)")
                 # Criar matriz para Heatmap
                 df_heat = df_oee.groupby(['data', 'hora'])['oee'].mean().reset_index()
                 
@@ -1478,6 +1494,165 @@ with col_meio:
                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
         else:
             st.info("Carregue o arquivo 'oee teep.xlsx' para visualizar as métricas de eficiência.")
+    if selected_tab == "Canudos":
+        st.subheader("Gestão de Canudos: Produção vs Perdas")
+        
+        if not st.session_state.get("canudos_df", pd.DataFrame()).empty:
+             df_can = st.session_state.canudos_df.copy()
+             
+             # Filtros (Estilo OEE, mas apenas Data)
+             st.markdown("#### Filtros")
+             min_date = df_can['data'].min()
+             max_date = df_can['data'].max()
+             
+             # Proteção para datas nulas
+             if pd.isnull(min_date): min_date = pd.Timestamp.today()
+             if pd.isnull(max_date): max_date = pd.Timestamp.today()
+             
+             # Default para Ontem (conforme solicitado)
+             yesterday = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+             default_val = (yesterday, yesterday)
+             
+             # Garantir que min_value abrange ontem se necessário, ou apenas deixar livre
+             # st.date_input min_value trava a seleção. Se os dados começam HOJE, ontem daria erro se travado.
+             # Vamos ajustar o min_date visual para incluir ontem se a base for muito recente
+             visual_min = min(min_date.date(), yesterday)
+
+             sel_dates = st.date_input("Período", value=default_val, min_value=visual_min, max_value=max_date, key="dates_canudos")
+             
+             # Aplicação do Filtro
+             if isinstance(sel_dates, tuple): # Garante que é tupla
+                 if len(sel_dates) == 2:
+                    df_can = df_can[(df_can['data'] >= pd.Timestamp(sel_dates[0])) & (df_can['data'] <= pd.Timestamp(sel_dates[1]))]
+                 elif len(sel_dates) == 1: # Caso selecione apenas uma data início
+                    df_can = df_can[df_can['data'] >= pd.Timestamp(sel_dates[0])]
+             
+             st.write("---")
+
+             # Métricas Gerais
+             c1, c2, c3, c4 = st.columns(4)
+             with c1:
+                 st.metric("Total Peças Boas", f"{df_can['pecas_boas'].sum():,.0f}".replace(",", "."))
+             with c2:
+                 st.metric("Total Perdas", f"{df_can['perdas'].sum():,.0f}".replace(",", "."))
+             with c3:
+                 eff = 0
+                 total_geral = df_can['pecas_boas'].sum() + df_can['perdas'].sum()
+                 if total_geral > 0:
+                     eff = (df_can['pecas_boas'].sum() / total_geral) * 100
+                 st.metric("Eficiência Global", f"{eff:.1f}%")
+             with c4:
+                 loss_pct = 0
+                 if total_geral > 0:
+                     loss_pct = (df_can['perdas'].sum() / total_geral) * 100
+                 st.metric("% Perdas", f"{loss_pct:.1f}%")
+
+             st.write("---")
+             
+             # Gráfico Comparativo: Peças Boas vs Perdas (Agrupado por Data)
+             st.write("#### Produção Diária: Peças Boas vs Perdas")
+             
+             # Agrupar por data para o gráfico
+             df_grouped = df_can.groupby('data')[['pecas_boas', 'perdas']].sum().reset_index()
+             
+             # Format: DD/MM (Dia)
+             dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+             df_grouped['data_label'] = df_grouped['data'].dt.strftime('%d/%m') + " (" + df_grouped['data'].dt.dayofweek.map(dias_semana) + ")"
+             
+             # Melt para formato do Plotly (Barras Agrupadas)
+             df_melted = df_grouped.melt(id_vars='data_label', value_vars=['pecas_boas', 'perdas'], 
+                                        var_name='Tipo', value_name='Quantidade')
+             
+             # Mapeamento de nomes para legenda
+             df_melted['Tipo'] = df_melted['Tipo'].map({'pecas_boas': 'Peças Boas', 'perdas': 'Perdas'})
+             
+             fig_can = px.bar(df_melted, x='data_label', y='Quantidade', color='Tipo',
+                             barmode='group',
+                             text='Quantidade',
+                             labels={'Quantidade': 'Qtd. Peças', 'data_label': '', 'Tipo': ''},
+                             # Cores: Cyan para Boas, Vermelho/Laranja ou Azul Escuro para Perdas?
+                             # Vamos usar Cyan (#00adef) para Boas e Magenta/Roxo (#e91e63 ou da paleta #1a335f) para contrastar
+                             # Usando Paleta do App: Cyan vs Dark Blue
+                             color_discrete_map={'Peças Boas': '#00adef', 'Perdas': '#1a335f'})
+                             
+             fig_can.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+             
+             # Linha Mediana (Peças Boas)
+             median_boas = df_grouped['pecas_boas'].median()
+             fig_can.add_hline(y=median_boas, line_dash="dash", line_color="#89c153", 
+                              annotation_text=f"Mediana: {median_boas:,.0f}", 
+                              annotation_position="top left",
+                              annotation_font_color="#89c153")
+             
+             fig_can.update_layout(
+                 paper_bgcolor='rgba(0,0,0,0)',
+                 plot_bgcolor='rgba(0,0,0,0)',
+                 height=450,
+                 margin=dict(t=30, b=40, l=0, r=0),
+                 legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+             )
+             st.plotly_chart(fig_can, use_container_width=True)
+             
+             st.write("---")
+             st.write("#### Análise por Turno")
+
+             # 1. Peças por Hora, por Turno
+             # Se houver dados de HORA (>0), usamos hourly agregation. Se não, mostramos aviso ou agrupamos só por Turno.
+             # O usuário pediu "peças por hora, por turno". Vamos assumir X=Hora, Y=Peças, Color=Turno
+             if df_can['hora'].sum() > 0:
+                 df_hora_turno = df_can.groupby(['turno', 'hora'])['pecas_boas'].sum().reset_index()
+                 fig_hora = px.bar(df_hora_turno, x='hora', y='pecas_boas', color='turno',
+                                  title="Peças por Hora (Detalhado por Turno)",
+                                  labels={'hora': 'Hora do Dia', 'pecas_boas': 'Qtd. Peças', 'turno': 'Turno'},
+                                  color_discrete_sequence=['#00adef', '#1a335f', '#89c153']) # Cyan, Blue, Green
+                 
+                 # Linha Mediana (Hora)
+                 median_hora = df_hora_turno['pecas_boas'].median()
+                 fig_hora.add_hline(y=median_hora, line_dash="dash", line_color="#89c153",
+                                   annotation_text=f"Mediana: {median_hora:,.0f}",
+                                   annotation_position="top left",
+                                   annotation_font_color="#89c153")
+                                   
+                 fig_hora.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                 st.plotly_chart(fig_hora, use_container_width=True)
+             else:
+                 # Se não tiver hora, não dá pra fazer "por hora".
+                 pass 
+                 # st.warning("Dados não contêm informação de hora para detalhamento horário.")
+
+             # Layout para Produção e Perdas por Turno
+             c_t1, c_t2 = st.columns(2)
+             
+             with c_t1:
+                 # Produção por Turno
+                 df_prod_turno = df_can.groupby('turno')['pecas_boas'].sum().reset_index()
+                 fig_pt = px.pie(df_prod_turno, names='turno', values='pecas_boas',
+                                title="Produção Total por Turno",
+                                color_discrete_sequence=['#00adef', '#1a335f', '#89c153'])
+                 fig_pt.update_traces(textposition='inside', textinfo='percent+label')
+                 fig_pt.update_layout(
+                     paper_bgcolor='rgba(0,0,0,0)', 
+                     plot_bgcolor='rgba(0,0,0,0)', 
+                     height=350
+                 )
+                 st.plotly_chart(fig_pt, use_container_width=True)
+                 
+             with c_t2:
+                 # Perdas por Turno
+                 df_loss_turno = df_can.groupby('turno')['perdas'].sum().reset_index()
+                 fig_lt = px.pie(df_loss_turno, names='turno', values='perdas',
+                                title="Perdas Totais por Turno",
+                                color_discrete_sequence=['#1a335f', '#00adef', '#89c153']) # Dark Blue first for losses logic (optional variation)
+                 fig_lt.update_traces(textposition='inside', textinfo='percent+label')
+                 fig_lt.update_layout(
+                     paper_bgcolor='rgba(0,0,0,0)', 
+                     plot_bgcolor='rgba(0,0,0,0)', 
+                     height=350
+                 )
+                 st.plotly_chart(fig_lt, use_container_width=True)
+                
+        else:
+            st.info("Arquivo 'Canudos.xlsx' não carregado ou vazio. Verifique se o arquivo está na pasta.")
 
     if selected_tab == "Assistente IA":
         # Input do chat
@@ -1536,7 +1711,22 @@ with col_meio:
             # 1. Top 10 High-Cost Products (Full Width)
             st.write("#### Top 10: Produtos com Maior Custo (1000 un.)")
             df_top10 = df_fin.nlargest(10, 'custo_total_tinta_mil')[['referencia', 'produto', 'decoracao', 'custo_total_tinta_mil']].copy()
-            df_top10['label'] = df_top10['referencia'] + " - " + df_top10['produto'] + " (" + df_top10['decoracao'] + ")"
+            
+            # Função de limpeza local
+            def clean_name_cost(name):
+                if not isinstance(name, str): return str(name)
+                # Separar letras/números
+                name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+                name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+                # Remover palavras indesejadas
+                name = name.lower().replace('garrafa', '').replace('corpo', '')
+                # Formatar
+                name = name.title()
+                name = re.sub(r'\b[mM][lL]\b', 'ml', name)
+                return name.strip()
+
+            df_top10['produto_clean'] = df_top10['produto'].apply(clean_name_cost)
+            df_top10['label'] = df_top10['referencia'] + " - " + df_top10['produto_clean'] + " (" + df_top10['decoracao'] + ")"
             
             # Ordenar do MAIOR para o MENOR para que o maior fique no TOPO no gráfico horizontal
             df_top10 = df_top10.sort_values('custo_total_tinta_mil', ascending=True)
@@ -1607,8 +1797,36 @@ with col_meio:
                 st.write("#### Distribuição de Tintas por Cor (%)")
                 cons_cor = df_ana[cores].sum().reset_index()
                 cons_cor.columns = ['Cor', 'Volume']
+                
+                # Mapeamento explícito para diferenciar cores
+                # Cyan (tinta) -> #00adef (Ciano)
+                # Varnish (tinta) -> #4466b1 (Azul Médio) - Diferente do Ciano
+                # Magenta -> #89c153 (Verde Lima) - Contraste
+                # Yellow -> #e91e63 (Magenta?) Ou melhor seguir paleta? 
+                # Vamos usar a paleta mas garantindo contraste
+                color_map = {
+                    'cyan': '#00adef',    # Ciano Brilhante
+                    'magenta': '#1a335f', # Azul Escuro
+                    'yellow': '#89c153',  # Verde Lima (Claro)
+                    'black': '#000000',   # Preto (ou bem escuro) - mas tema é dark. Vamos usar branco ou cinza se fundo for transparente? O tema é glass. 
+                                          # Melhor seguir a paleta de 5 cores para consistência visual do App
+                    'white': '#ffffff',
+                    'varnish': '#4466b1'  # Azul Médio
+                }
+                # Ajuste para paleta do tema (override parcial para consistência)
+                # Cyan: #00adef
+                # Varnish: #4466b1 (Azul Médio) -> Diferente do Cyan
+                # Demais distribuídos
+                
                 fig_pie = px.pie(cons_cor, values='Volume', names='Cor', color='Cor',
-                               color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
+                               color_discrete_map={
+                                   'cyan': '#00adef',     # Ciano
+                                   'varnish': '#1a335f',  # Azul Escuro (Para diferenciar bem do ciano)
+                                   'magenta': '#4466b1',  # Azul Médio
+                                   'yellow': '#89c153',   # Verde Lima
+                                   'black': '#09a38c',    # Teal
+                                   'white': '#d3d3d3'     # Cinza claro
+                               },
                                hole=0.4)
                 fig_pie.update_layout(
                     margin=dict(t=20, b=80, l=0, r=0), 
@@ -1749,7 +1967,17 @@ with col_meio:
                 if not df_prod['data'].empty:
                     min_date_prod = df_prod['data'].min()
                     max_date_prod = df_prod['data'].max()
-                    sel_dates_prod = st.date_input("Período", value=(min_date_prod, max_date_prod), min_value=min_date_prod, max_value=max_date_prod, key="prod_date")
+                    
+                    # Default para Ontem
+                    yesterday_prod = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+                    default_val_prod = (yesterday_prod, yesterday_prod)
+                    
+                    if pd.notnull(min_date_prod):
+                        visual_min_prod = min(min_date_prod.date(), yesterday_prod)
+                    else:
+                        visual_min_prod = yesterday_prod
+
+                    sel_dates_prod = st.date_input("Período", value=default_val_prod, min_value=visual_min_prod, max_value=max_date_prod, key="prod_date")
                 else:
                     sel_dates_prod = []
 
@@ -1817,6 +2045,27 @@ with col_meio:
                 
                 # --- NOVOS GRÁFICOS ---
                 
+                # 1. Evolução Diária (Barras)
+                st.write("#### Produção Diária (Peças Boas)")
+                df_daily_prod = df_prod.groupby('data')['pecas_boas'].sum().reset_index()
+                # Formatar data para DD/MM
+                df_daily_prod['data_label'] = df_daily_prod['data'].dt.strftime('%d/%m')
+                
+                fig_daily_prod = px.bar(df_daily_prod, x='data_label', y='pecas_boas',
+                                         labels={'pecas_boas': 'Peças Boas', 'data_label': 'Data'},
+                                         text='pecas_boas',
+                                         color_discrete_sequence=['#00adef']) # Cyan
+                fig_daily_prod.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
+                fig_daily_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=350,
+                    margin=dict(t=20, b=40, l=0, r=0)
+                )
+                st.plotly_chart(fig_daily_prod, use_container_width=True)
+                
+                st.write("---")
+
                 # 2. Evolução Horária (Linha) -> Agora Barra
                 st.write("#### Evolução Horária da Produção")
                 df_hourly_prod = df_prod.groupby('hora')['pecas_boas'].sum().reset_index()
@@ -1849,14 +2098,18 @@ with col_meio:
 
                 fig_op = px.bar(df_op_prod_grouped, x='pecas_boas', y='operador', orientation='h',
                                text='pecas_boas',
+                               color='operador', # Adicionar cor por operador
                                labels={'pecas_boas': '', 'operador': ''},
-                               color_discrete_sequence=['#4466b1']) # Medium Blue
-                fig_op.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                               color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153']) # Paleta para diferenciar
+                
+                fig_op.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
                 fig_op.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     height=400,
                     xaxis_visible=False,
+                    yaxis={'categoryorder':'total ascending'}, # Garante maior no TOPO
+                    showlegend=False, # Esconder legenda pois nomes já estão no eixo Y
                     margin=dict(t=30, b=0, l=0, r=0)
                 )
                 st.plotly_chart(fig_op, use_container_width=True)
