@@ -248,12 +248,11 @@ st.markdown(f"""
     src: url(data:font/ttf;base64,{font_base64}) format('truetype');
 }}
 
-/* Aplicar fonte ABSOLUTAMENTE em tudo: textos, números, métricas e tabelas */
+/* Aplicar fonte ABSOLUTAMENTE em tudo */
 * {{
     font-family: 'SamsungSharpSans', sans-serif !important;
 }}
 
-/* Garantir que métricas e dataframes (tabelas) herdem corretamente */
 [data-testid="stMetricValue"], 
 [data-testid="stTable"], 
 [data-testid="stDataFrame"],
@@ -262,7 +261,7 @@ div {{
     font-family: 'SamsungSharpSans', sans-serif !important;
 }}
 
-/* RESTAURAR ÍCONES: Impedir que a fonte customizada sobrescreva os glifos/ligaduras */
+/* RESTAURAR ÍCONES */
 [data-testid="stIconMaterial"], 
 .material-icons,
 .material-symbols-outlined,
@@ -270,7 +269,7 @@ i {{
     font-family: 'Material Symbols Outlined', 'Material Icons', 'serif' !important;
 }}
 
-/* Correção RADICAL para o texto 'keyboard_double_arrow_right' no cabeçalho */
+/* Correção para o texto no cabeçalho */
 header[data-testid="stHeader"] button {{
     font-size: 0 !important;
     color: transparent !important;
@@ -284,7 +283,7 @@ header[data-testid="stHeader"] button * {{
     visibility: hidden !important;
 }}
 
-/* Recriar o ícone da sidebar (seta/menu) de forma limpa */
+/* Recriar o ícone da sidebar */
 [data-testid="stSidebarCollapseButton"]::after {{
     content: "〉" !important;
     visibility: visible !important;
@@ -299,7 +298,6 @@ header[data-testid="stHeader"] button * {{
     pointer-events: none !important;
 }}
 
-/* Estilo do botão em si */
 [data-testid="stSidebarCollapseButton"] {{
     background-color: transparent !important;
     border: none !important;
@@ -308,10 +306,8 @@ header[data-testid="stHeader"] button * {{
     position: relative !important;
 }}
 
-/* Garante que o botão de Deploy e Menu (direita) não sumam texto se necessário, 
-   mas como o 'Deploy' costuma ser um span específico, vamos isolá-los */
 header[data-testid="stHeader"] [data-testid="stHeaderActionElements"] button {{
-    font-size: 14px !important; /* Restaura tamanho para botões da direita */
+    font-size: 14px !important;
     color: white !important;
 }}
 
@@ -331,6 +327,19 @@ p.custom-font {{
     background-repeat: no-repeat;
     background-attachment: fixed;
 }}
+
+    /* Efeito Glassmorphism */
+    .glass-card {{
+        background: rgba(25, 25, 25, 0.6) !important;
+        backdrop-filter: blur(15px) !important;
+        -webkit-backdrop-filter: blur(15px) !important;
+        border-radius: 15px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 20px !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8) !important;
+        margin-bottom: 25px !important;
+    }}
+
 /* Estilização do chat */
 .stChatMessage {{
     background-color: rgba(255, 255, 255, 0.05) !important;
@@ -339,15 +348,18 @@ p.custom-font {{
     margin-bottom: 10px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }}
+
 .stChatInputContainer {{
     padding-bottom: 20px !important;
 }}
+
 /* Remover ícones do chat */
 [data-testid="stChatMessageAvatarUser"], 
 [data-testid="stChatMessageAvatarAssistant"],
 .stChatMessageAvatar {{
     display: none !important;
 }}
+
 /* Estilizar o botão para largura total e texto 'Enviar Imagem' */
 div[data-testid="stFileUploader"] section,
 div[data-testid="stFileUploader"] label {{
@@ -358,20 +370,23 @@ div[data-testid="stFileUploader"] label {{
     padding: 0 !important;
     margin: 0 !important;
 }}
+
 div[data-testid="stFileUploader"] label {{
-    display: none !important; /* Esconde o rótulo redundante */
+    display: none !important;
 }}
+
 div[data-testid="stFileUploader"] section {{
     background-color: transparent !important;
     border: none !important;
     min-height: 0 !important;
     pointer-events: none !important;
 }}
+
 div[data-testid="stFileUploader"] svg,
 div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] {{
     display: none !important;
 }}
-/* APENAS o botão principal de upload (dentro da section) deve ter largura total e estilo customizado */
+
 div[data-testid="stFileUploader"] section button {{
     font-family: 'SamsungSharpSans', sans-serif !important;
     width: 100% !important;
@@ -390,7 +405,6 @@ div[data-testid="stFileUploader"] section button {{
     cursor: pointer !important;
 }}
 
-/* Texto do botão principal */
 div[data-testid="stFileUploader"] section button::before {{
     display: flex !important;
     content: "Enviar Imagem" !important;
@@ -407,7 +421,7 @@ div[data-testid="stFileUploader"] section button::before {{
     pointer-events: none !important;
 }}
 
-/* MATAR QUALQUER RASTRO EM OUTROS BOTÕES (Excluir, etc) */
+/* MATAR QUALQUER RASTRO EM OUTROS BOTÕES */
 div[data-testid="stFileUploader"] button:not(section button),
 div[data-testid="stFileUploaderDeleteBtn"],
 div[data-testid="stFileUploaderFileData"] button,
@@ -426,7 +440,7 @@ div[data-testid="stFileUploaderFileData"] button::before {{
     display: none !important;
 }}
 
-/* Botão de Configurações (Engrenagem customizada) - ALTA PRIORIDADE */
+/* Botão de Configurações - ALTA PRIORIDADE */
 div[data-testid="stPopover"] > button,
 div.stPopover > button,
 .stPopover > button {{
@@ -434,20 +448,17 @@ div.stPopover > button,
     top: 20px !important;
     right: 20px !important;
     z-index: 99999999 !important;
-    
     background-color: transparent !important;
     background-image: url("data:image/png;base64,{img_base64_config}") !important;
     background-size: 28px !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
-    
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 10px !important;
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
     min-height: 44px !important;
-    
     color: transparent !important;
     font-size: 0 !important;
     cursor: pointer !important;
@@ -455,7 +466,6 @@ div.stPopover > button,
     transition: all 0.2s ease !important;
 }}
 
-/* Esconder ABSOLUTAMENTE tudo dentro do botão (Ícone default e Chevron) */
 div[data-testid="stPopover"] > button *,
 div.stPopover > button *,
 .stPopover > button * {{
@@ -473,37 +483,37 @@ div.stPopover > button:hover {{
     border-color: rgba(255, 255, 255, 0.3) !important;
 }}
 
-/* Remover bordas residuais do container do popover */
 div[data-testid="stPopover"], div.stPopover {{
     border: none !important;
     background: transparent !important;
 }}
-    /* Estilo para as abas (Tabs) - Azul Integrado ao Background */
-    [data-testid="stTab"] p {{
-        font-size: 1.1rem !important;
-        font-weight: bold !important;
-        color: rgba(255, 255, 255, 0.6) !important;
-        transition: all 0.3s ease !important;
-    }}
-    
-    [data-testid="stTab"][aria-selected="true"] {{
-        background-color: rgba(0, 210, 255, 0.08) !important;
-        border-bottom: 3px solid #00d2ff !important;
-    }}
-    
-    [data-testid="stTab"][aria-selected="true"] p {{
-        color: #00d2ff !important;
-    }}
 
-    [data-testid="stTab"]:hover p {{
-        color: white !important;
-    }}
+/* Estilo para as abas (Tabs) */
+[data-testid="stTab"] p {{
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    transition: all 0.3s ease !important;
+}}
 
-    /* Remover a linha vermelha padrão do Streamlit */
-    [data-testid="stTabList"] div[data-baseweb="tab-highlight"] {{
-        background-color: transparent !important;
-        display: none !important;
-    }}
+[data-testid="stTab"][aria-selected="true"] {{
+    background-color: rgba(0, 210, 255, 0.08) !important;
+    border-bottom: 3px solid #00d2ff !important;
+}}
+
+[data-testid="stTab"][aria-selected="true"] p {{
+    color: #00d2ff !important;
+}}
+
+[data-testid="stTab"]:hover p {{
+    color: white !important;
+}}
+
+/* Remover a linha vermelha padrão do Streamlit */
+[data-testid="stTabList"] div[data-baseweb="tab-highlight"] {{
+    background-color: transparent !important;
+    display: none !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 # Estilos customizados para progress bars e feedback visual
@@ -602,6 +612,86 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
 /* Aplicar transições apenas a elementos específicos se necessário */
 .stButton, .stTextInput, .stFileUploader, .stChatMessage {
     transition: background-color 0.2s ease, transform 0.2s ease !important;
+}
+
+/* --- TRANSFORMAR RADIO EM ABAS (RESTAURANDO O VISUAL) --- */
+[data-testid="stRadio"] > div[role="radiogroup"] {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between; /* Distribui o espaço */
+    align-items: center;
+    gap: 5px; /* Reduzido de 10px */
+    width: 100%; /* Garante uso total da largura */
+    flex-wrap: nowrap; /* IMPEDE quebra de linha */
+    background-color: transparent !important;
+    padding-bottom: 0px !important;
+    overflow-x: auto; /* Permite scroll se muito pequeno, mas tentaremos encaixar */
+}
+
+/* Esconder barra de rolagem */
+[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-testid="stRadio"] > div[role="radiogroup"] > label {
+    background: transparent !important;
+    padding: 10px 5px !important; /* Reduzido padding lateral */
+    cursor: pointer !important;
+    border-radius: 5px 5px 0 0 !important;
+    transition: all 0.3s !important;
+    flex: 1 1 auto; /* Permite crescer e encolher */
+    min-width: 0; /* Permite encolher abaixo do conteúdo se necessário */
+    text-align: center !important;
+    justify-content: center !important;
+    margin-right: 0px !important;
+    border: none !important;
+    white-space: nowrap; /* Mantém texto em uma linha */
+    overflow: hidden;
+    text-overflow: ellipsis; /* ... se cortar muito */
+}
+
+/* Esconder bolinha do radio */
+[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child {
+    display: none !important;
+}
+
+/* Texto do item */
+[data-testid="stRadio"] > div[role="radiogroup"] > label > div[data-testid="stMarkdownContainer"] p {
+    font-size: 0.9rem !important;
+    font-weight: bold !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin: 0 !important;
+}
+
+/* --- RESPONSIVIDADE (MOBILE) --- */
+@media (max-width: 600px) {
+    [data-testid="stRadio"] > div[role="radiogroup"] {
+        gap: 2px;
+    }
+    [data-testid="stRadio"] > div[role="radiogroup"] > label {
+        padding: 5px 2px !important;
+    }
+    [data-testid="stRadio"] > div[role="radiogroup"] > label > div[data-testid="stMarkdownContainer"] p {
+        font-size: 0.7rem !important; /* Fonte menor no celular */
+    }
+}
+
+/* Hover */
+[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+[data-testid="stRadio"] > div[role="radiogroup"] > label:hover > div[data-testid="stMarkdownContainer"] p {
+    color: white !important;
+}
+
+/* Ítem Selecionado (Simulando a aba ativa) */
+[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) {
+    border-bottom: 3px solid #00d2ff !important;
+    background-color: rgba(0, 210, 255, 0.08) !important;
+}
+
+[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) > div[data-testid="stMarkdownContainer"] p {
+    color: #00d2ff !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -703,8 +793,109 @@ def load_oee_data():
         new_df['turno'] = new_df['turno'].apply(rename_shift)
         
         return new_df
+        return new_df
     except Exception as e:
         st.error(f"Erro ao carregar oee teep.xlsx: {e}")
+        return pd.DataFrame()
+
+def load_producao_data():
+    try:
+        # Pular as primeiras 3 linhas (cabeçalhos na linha 3, dados começam na 4)
+        # header=None porque a linha 4 é DADO e não cabeçalho
+        df = pd.read_excel('producao.xlsx', skiprows=3, header=None)
+        
+        # Mapeamento Solicitado (Revisado):
+        # B (1): Máquina
+        # C (2): Data
+        # F (5): Hora
+        # G (6): Turno
+        # H (7): Registro
+        # I (8): OS
+        # J (9): Produto (Implícito/Contexto)
+        # K (10): Operador
+        # O (14): Produção Total
+        # P (15): Rejeito
+        # Q (16): Peças Boas
+        
+        new_df = pd.DataFrame()
+        new_df['maquina'] = df.iloc[:, 1]
+        new_df['data'] = df.iloc[:, 2]
+        new_df['hora'] = df.iloc[:, 5]
+        new_df['turno_cod'] = df.iloc[:, 6]
+        new_df['registro'] = df.iloc[:, 7]
+        new_df['os'] = df.iloc[:, 8]
+        new_df['produto'] = df.iloc[:, 9]
+        new_df['operador'] = df.iloc[:, 10]
+        # Ignore L(11), M(12), N(13)
+        new_df['producao_total'] = df.iloc[:, 14]
+        new_df['rejeito'] = df.iloc[:, 15]
+        new_df['pecas_boas'] = df.iloc[:, 16]
+        
+        # Limpezas básicas
+        new_df = new_df[new_df['maquina'].notna()]
+        new_df = new_df[~new_df['maquina'].astype(str).str.contains('Turno', na=False, case=False)]
+        new_df = new_df[new_df['data'].notna()]
+        
+        # Converter data
+        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, errors='coerce')
+        new_df = new_df.dropna(subset=['data'])
+        
+        # Mapear turno
+        def map_shift(val):
+            try:
+                v = int(float(val))
+                if v == 1: return 'Turno A'
+                if v == 2: return 'Turno B'
+                if v == 3: return 'Turno C'
+            except:
+                pass
+            return str(val)
+            
+        new_df['turno'] = new_df['turno_cod'].apply(map_shift)
+        
+        # Converter numéricos
+        cols_num = ['producao_total', 'rejeito', 'pecas_boas']
+        for c in cols_num:
+            new_df[c] = pd.to_numeric(new_df[c], errors='coerce').fillna(0)
+            
+        return new_df
+    except Exception as e:
+        st.warning(f"Erro ao carregar producao.xlsx: {e}")
+        return pd.DataFrame()
+
+
+def load_canudos_data():
+    """Carrega dados de Canudos.xlsx"""
+    try:
+        # A=0 (Data), B=1 (Turno), C=2 (OS), D=3 (Op), E=4 (Boas), F=5 (Perdas)
+        df = pd.read_excel("Canudos.xlsx", header=None, usecols="A:F")
+        target_cols = [0, 1, 2, 3, 4, 5]
+        
+        # Selecionar apenas as colunas desejadas (caso force indices)
+        new_df = df.iloc[:, target_cols].copy()
+        new_df.columns = ['data', 'turno', 'os', 'operador', 'pecas_boas', 'perdas']
+        
+        # Limpeza e Conversão
+        new_df['data'] = pd.to_datetime(new_df['data'], errors='coerce')
+        new_df = new_df.dropna(subset=['data']) # Remove linhas sem data (cabeçalho se houver)
+        
+        # Extrair Hora (se houver informação de tempo)
+        new_df['hora'] = new_df['data'].dt.hour.fillna(0).astype(int)
+
+        # Mapeamento de Operadores
+        map_op = {8502: 'Pedro', 8524: 'Leonardo'}
+        # Converter para numérico primeiro para garantir match no dict
+        new_df['operador_cod'] = pd.to_numeric(new_df['operador'], errors='coerce')
+        new_df['operador_nome'] = new_df['operador_cod'].map(map_op).fillna(new_df['operador'])
+        
+        # Converter métricas
+        cols_num = ['pecas_boas', 'perdas']
+        for c in cols_num:
+            new_df[c] = pd.to_numeric(new_df[c], errors='coerce').fillna(0)
+            
+        return new_df
+    except Exception as e:
+        # st.warning(f"Aviso: Canudos.xlsx não encontrado ou erro de leitura: {e}") # Silencioso no startup
         return pd.DataFrame()
 
 def refresh_data():
@@ -735,6 +926,14 @@ def refresh_data():
     status_text.text('Carregando dados OEE/TEEP...')
     progress_bar.progress(0.85)
     st.session_state.oee_df = load_oee_data()
+    
+    status_text.text('Carregando dados de Produção...')
+    progress_bar.progress(0.90)
+    st.session_state.producao_df = load_producao_data()
+
+    status_text.text('Carregando dados de Canudos...')
+    progress_bar.progress(0.92)
+    st.session_state.canudos_df = load_canudos_data()
 
     status_text.text('Calculando custos financeiros...')
     progress_bar.progress(0.95)
@@ -788,7 +987,7 @@ def process_chat_request(prompt, dfs, image=None):
         progress_bar.progress(0.20)
         
         with status_container:
-            st.info('Processando dados das planilhas...')
+            st.info('Processando...')
         progress_bar.progress(0.40)
         context = build_context(dfs)
         
@@ -896,7 +1095,9 @@ st.sidebar.write("trabalhos:", len(st.session_state.get("trabalhos_df", [])))
 st.sidebar.write("dacen:", len(st.session_state.get("dacen_df", [])))
 st.sidebar.write("psi:", len(st.session_state.get("psi_df", [])))
 st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
+st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
 st.sidebar.write("oee/teep:", len(st.session_state.get("oee_df", [])))
+st.sidebar.write("produção:", len(st.session_state.get("producao_df", [])))
 
 if st.sidebar.button("Atualizar Dados"):
     with st.spinner('Atualizando dados...'):
@@ -1033,11 +1234,28 @@ with col_dir:
 
 with col_meio:
 
-    tab_chat, tab_financeiro, tab_analitico, tab_oee, tab_config = st.tabs([
-        "Assistente IA", "Custo", "Analítico", "Oee e Teep", "Configurações"
-    ])
+    # --- Navegação Persistente (Substituindo st.tabs para corrigir reset) ---
+    tabs_labels = ["Assistente IA", "Custo", "Analítico", "Produção", "Oee e Teep", "Canudos", "Relatórios", "Configurações"]
+    
+    # Inicializar estado se não existir
+    if "nav_tab" not in st.session_state:
+        st.session_state.nav_tab = tabs_labels[0]
 
-    with tab_config:
+    # Menu de navegação (estilo botões/abas)
+    selected_tab = st.radio(
+        "", 
+        tabs_labels, 
+        horizontal=True, 
+        label_visibility="collapsed",
+        key="nav_tab"
+    )
+    st.markdown("---")
+
+    if selected_tab == "Relatórios":
+        st.subheader("Relatórios de Produção")
+        st.info("Em desenvolvimento...")
+
+    if selected_tab == "Configurações":
         st.markdown("### Custos de Tintas (USD)")
         
         
@@ -1100,7 +1318,7 @@ with col_meio:
                 except Exception as e:
                     st.error(f"❌ Erro ao salvar: {e}")
 
-    with tab_oee:
+    if selected_tab == "Oee e Teep":
         st.subheader("Indicadores de Eficiência (OEE/TEEP)")
         
         if not st.session_state.get("oee_df", pd.DataFrame()).empty:
@@ -1115,7 +1333,19 @@ with col_meio:
             with c2:
                 min_date = df_oee['data'].min()
                 max_date = df_oee['data'].max()
-                sel_dates = st.date_input("Período", value=(min_date, max_date), min_value=min_date, max_value=max_date)
+                
+                # Default para Ontem
+                yesterday = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+                default_val = (yesterday, yesterday)
+                
+                # Ajustar min visual para evitar erro se base for pós-ontem
+                # min_date pode ser Timestamp, converter para date
+                if pd.notnull(min_date):
+                    visual_min = min(min_date.date(), yesterday)
+                else:
+                    visual_min = yesterday
+
+                sel_dates = st.date_input("Período", value=default_val, min_value=visual_min, max_value=max_date)
             
             # Aplicação dos filtros
             if sel_maquina != "Todas":
@@ -1123,6 +1353,13 @@ with col_meio:
             
             if len(sel_dates) == 2:
                 df_oee = df_oee[(df_oee['data'] >= pd.Timestamp(sel_dates[0])) & (df_oee['data'] <= pd.Timestamp(sel_dates[1]))]
+            
+            st.markdown("### Pergunte sobre os indicadores OEE e TEEP")
+            prompt_oee = st.chat_input("Ex: Qual máquina teve a melhor performance?", key="chat_oee")
+            if prompt_oee:
+                with st.chat_message("user"): st.markdown(prompt_oee)
+                with st.chat_message("assistant"):
+                    process_chat_request(prompt_oee, {"oee_teep": df_oee})
             
             if not df_oee.empty:
                 # Métricas principais
@@ -1132,41 +1369,52 @@ with col_meio:
                 with m2:
                     st.metric("TEEP Médio", f"{df_oee['teep'].mean()*100:.1f}%")
                 
-                st.write("---")
-                
-                # Gráfico de linha temporal
+                # Gráfico de linha temporal com efeito Glass
                 st.write("#### Evolução Temporal OEE e TEEP")
                 df_daily = df_oee.groupby('data')[['oee', 'teep']].mean().reset_index()
-                fig_line = px.line(df_daily, x='data', y=['oee', 'teep'], 
-                                  labels={'value': '', 'data': 'Data', 'variable': 'Métrica'},
-                                  color_discrete_sequence=['#3a7bd5', '#00d2ff'])
-                fig_line.update_layout(yaxis_tickformat='.1%', height=400,
-                                      legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
+                
+                # Criar rótulo com dia da semana em português
+                dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+                df_daily['data_label'] = df_daily['data'].dt.strftime('%d/%m') + " (" + df_daily['data'].dt.dayofweek.map(dias_semana) + ")"
+                
+                fig_line = px.line(df_daily, x='data_label', y=['oee', 'teep'], 
+                                  labels={'value': '', 'data_label': '', 'variable': ''},
+                                  color_discrete_sequence=['#4466b1', '#00adef'])
+                fig_line.update_traces(hovertemplate='%{y:.1%}')
+                fig_line.update_layout(
+                    yaxis_tickformat='.1%', 
+                    height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=20, b=80, l=60, r=40),
+                    legend_title_text='',
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                )
+                
                 st.plotly_chart(fig_line, use_container_width=True)
                 
-                st.write("---")
-                
-                # Gráfico por hora (para ver o 57% as 20:00 por exemplo)
+                # Gráfico por hora
                 df_hourly = df_oee.groupby('hora')[['oee', 'teep']].mean().reset_index()
-                # Derreter para facilitar a rotulagem em gráfico agrupado
                 df_hourly_melted = df_hourly.melt(id_vars='hora', var_name='Métrica', value_name='Valor')
                 
                 fig_hourly = px.bar(df_hourly_melted, x='hora', y='Valor', color='Métrica', 
                                    barmode='group',
                                    text='Valor',
-                                   labels={'Valor': '', 'hora': 'Hora', 'Métrica': 'Métrica'},
-                                   color_discrete_sequence=['#3a7bd5', '#00d2ff'])
+                                   labels={'Valor': '', 'hora': 'Hora', 'Métrica': ''},
+                                   color_discrete_sequence=['#4466b1', '#00adef'])
                 
-                fig_hourly.update_traces(texttemplate='%{text:.1%}', textposition='outside')
+                fig_hourly.update_traces(texttemplate='%{text:.1%}', textposition='outside', hovertemplate='%{y:.1%}')
                 fig_hourly.update_layout(
                     yaxis_visible=False,
                     height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     margin=dict(t=50, b=50, l=0, r=0),
+                    legend_title_text='',
                     legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
                 )
-                st.plotly_chart(fig_hourly, use_container_width=True)
                 
-                st.write("---")
+                st.plotly_chart(fig_hourly, use_container_width=True)
                 
                 # Gráfico de barras por máquina (se "Todas" selecionado)
                 if sel_maquina == "Todas":
@@ -1174,93 +1422,254 @@ with col_meio:
                     df_mac = df_oee.groupby('maquina')['oee'].mean().sort_values(ascending=False).reset_index()
                     fig_mac = px.bar(df_mac, x='maquina', y='oee', color='oee', 
                                     text='oee',
-                                    color_continuous_scale='Viridis',
+                                    color_continuous_scale=['#0a1929', '#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
                                     labels={'oee': 'OEE Médio', 'maquina': 'Máquina'})
-                    fig_mac.update_traces(texttemplate='%{text:.1%}', textposition='outside')
+                    fig_mac.update_traces(texttemplate='%{text:.1%}', textposition='outside', hovertemplate='%{y:.1%}')
                     fig_mac.update_layout(
                         yaxis_visible=False, 
                         coloraxis_showscale=False,
                         height=450,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
                         margin=dict(t=50, b=50, l=0, r=0)
                     )
                     st.plotly_chart(fig_mac, use_container_width=True)
-                st.write("---")
                 
                 # Novos Gráficos Solicitados
-                col_a, col_b = st.columns(2)
+                st.write("#### Comparativo por Turno")
+                df_shift = df_oee.groupby('turno')[['oee', 'teep']].mean().reset_index()
+                fig_shift = px.bar(df_shift, x='turno', y=['oee', 'teep'], barmode='group',
+                                  text_auto='.1%',
+                                  labels={'value': '', 'variable': '', 'turno': ''},
+                                  color_discrete_sequence=['#4466b1', '#00adef'])
+                fig_shift.update_traces(hovertemplate='%{y:.1%}')
+                fig_shift.update_layout(
+                    yaxis_visible=False, height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=30, l=0, r=0),
+                    legend_title_text='',
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_shift, use_container_width=True)
                 
-                with col_a:
-                    st.write("#### 1. Comparativo por Turno")
-                    df_shift = df_oee.groupby('turno')[['oee', 'teep']].mean().reset_index()
-                    fig_shift = px.bar(df_shift, x='turno', y=['oee', 'teep'], barmode='group',
-                                      text_auto='.1%',
-                                      labels={'value': '', 'variable': 'Métrica'},
-                                      color_discrete_sequence=['#3a7bd5', '#00d2ff'])
-                    fig_shift.update_layout(yaxis_visible=False, height=350, margin=dict(t=30, b=30, l=0, r=0),
-                                           legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5))
-                    st.plotly_chart(fig_shift, use_container_width=True)
+                # 5. Distribuição de Performance
+                st.write("#### Distribuição de Performance (Faixas de OEE)")
+                def get_bucket(val):
+                    if val < 0.5: return "Baixa (<50%)"
+                    if val < 0.8: return "Normal (50-80%)"
+                    return "Alta (>80%)"
+                df_oee['faixa'] = df_oee['oee'].apply(get_bucket)
+                df_buckets = df_oee['faixa'].value_counts().reset_index()
+                df_buckets.columns = ['Faixa', 'Quantidade']
+                fig_buckets = px.pie(df_buckets, values='Quantidade', names='Faixa',
+                                    hole=0.4, color_discrete_sequence=['#89c153', '#00adef', '#1a335f'])
+                fig_buckets.update_layout(
+                    height=350,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=30, l=0, r=0),
+                    legend_title_text='',
+                    legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_buckets, use_container_width=True)
                 
-                with col_b:
-                    st.write("#### 2. OEE vs TEEP (Correlação)")
-                    fig_scat = px.scatter(df_oee, x='teep', y='oee', color='turno',
-                                         hover_data=['maquina', 'hora'],
-                                         labels={'teep': 'TEEP', 'oee': 'OEE'},
-                                         color_discrete_sequence=['#3a7bd5', '#00d2ff'])
-                    fig_scat.update_layout(height=350, margin=dict(t=30, b=30, l=0, r=0))
-                    st.plotly_chart(fig_scat, use_container_width=True)
-                
-                st.write("---")
-                
-                col_c, col_d = st.columns(2)
-                
-                with col_c:
-                    st.write("#### 3. Fatores de Perda (Componentes)")
-                    # Média dos componentes
-                    df_comp = df_oee[['disponibilidade', 'performance', 'qualidade']].mean().reset_index()
-                    df_comp.columns = ['Fator', 'Valor']
-                    fig_loss = px.bar(df_comp, x='Fator', y='Valor', color='Fator',
-                                     text_auto='.1%',
-                                     color_discrete_sequence=['#3a7bd5', '#00d2ff', '#4facfe'])
-                    fig_loss.update_layout(yaxis_visible=False, showlegend=False, height=350, margin=dict(t=30, b=30, l=0, r=0))
-                    st.plotly_chart(fig_loss, use_container_width=True)
-                
-                with col_d:
-                    st.write("#### 5. Distribuição de Performance")
-                    def get_bucket(val):
-                        if val < 0.5: return "Baixa (<50%)"
-                        if val < 0.8: return "Normal (50-80%)"
-                        return "Alta (>80%)"
-                    df_oee['faixa'] = df_oee['oee'].apply(get_bucket)
-                    df_buckets = df_oee['faixa'].value_counts().reset_index()
-                    df_buckets.columns = ['Faixa', 'Quantidade']
-                    fig_buckets = px.pie(df_buckets, values='Quantidade', names='Faixa',
-                                        hole=0.4, color_discrete_sequence=['#ff4b2b', '#ffb75e', '#56ab2f'])
-                    fig_buckets.update_layout(height=350, margin=dict(t=30, b=30, l=0, r=0),
-                                             legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5))
-                    st.plotly_chart(fig_buckets, use_container_width=True)
-                
-                st.write("---")
-                st.write("#### 4. Mapa de Calor: Consistência de OEE (Hora x Dia)")
+                st.write("#### Mapa de Calor: Consistência de OEE (Hora x Dia)")
                 # Criar matriz para Heatmap
                 df_heat = df_oee.groupby(['data', 'hora'])['oee'].mean().reset_index()
-                # Converter data para string formatada para o eixo
-                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m')
-                df_pivot = df_heat.pivot(index='hora', columns='data_str', values='oee').fillna(0)
+                
+                # Converter data para string formatada com dia da semana
+                dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m') + " (" + df_heat['data'].dt.dayofweek.map(dias_semana) + ")"
+                df_pivot = df_heat.pivot(index='hora', columns='data_str', values='oee').fillna(0) * 100
                 
                 fig_heat = px.imshow(df_pivot, 
-                                    labels=dict(x="Dia", y="Hora", color="OEE"),
-                                    color_continuous_scale='RdYlGn',
+                                    labels=dict(x="", y="Hora", color="OEE %"),
+                                    color_continuous_scale=['#0a1929', '#1a335f', '#4466b1', '#09a38c', '#89c153'],
+                                    zmin=0, zmax=100,
                                     aspect="auto")
-                fig_heat.update_layout(height=450, margin=dict(t=30, b=30, l=0, r=0))
+                fig_heat.update_traces(hovertemplate='Dia: %{x}<br>Hora: %{y}<br>OEE: %{z:.1f}%')
+                fig_heat.update_layout(
+                    height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=30, l=40, r=40),
+                    xaxis_tickangle=-45
+                )
                 st.plotly_chart(fig_heat, use_container_width=True)
-                
-                st.write("---")
+
             else:
                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
         else:
             st.info("Carregue o arquivo 'oee teep.xlsx' para visualizar as métricas de eficiência.")
+    if selected_tab == "Canudos":
+        st.subheader("Gestão de Canudos: Produção vs Perdas")
+        
+        if not st.session_state.get("canudos_df", pd.DataFrame()).empty:
+             df_can = st.session_state.canudos_df.copy()
+             
+             # Filtros (Estilo OEE, mas apenas Data)
+             st.markdown("#### Filtros")
+             min_date = df_can['data'].min()
+             max_date = df_can['data'].max()
+             
+             # Proteção para datas nulas
+             if pd.isnull(min_date): min_date = pd.Timestamp.today()
+             if pd.isnull(max_date): max_date = pd.Timestamp.today()
+             
+             # Default para Ontem (conforme solicitado)
+             yesterday = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+             default_val = (yesterday, yesterday)
+             
+             # Garantir que min_value abrange ontem se necessário, ou apenas deixar livre
+             # st.date_input min_value trava a seleção. Se os dados começam HOJE, ontem daria erro se travado.
+             # Vamos ajustar o min_date visual para incluir ontem se a base for muito recente
+             visual_min = min(min_date.date(), yesterday)
 
-    with tab_chat:
+             sel_dates = st.date_input("Período", value=default_val, min_value=visual_min, max_value=max_date, key="dates_canudos")
+             
+             # Aplicação do Filtro
+             if isinstance(sel_dates, tuple): # Garante que é tupla
+                 if len(sel_dates) == 2:
+                    df_can = df_can[(df_can['data'] >= pd.Timestamp(sel_dates[0])) & (df_can['data'] <= pd.Timestamp(sel_dates[1]))]
+                 elif len(sel_dates) == 1: # Caso selecione apenas uma data início
+                    df_can = df_can[df_can['data'] >= pd.Timestamp(sel_dates[0])]
+             
+             st.markdown("### Pergunte sobre os dados de Canudos")
+             prompt_can = st.chat_input("Ex: Qual turno produziu mais peças boas?", key="chat_canudos")
+             if prompt_can:
+                with st.chat_message("user"): st.markdown(prompt_can)
+                with st.chat_message("assistant"):
+                    process_chat_request(prompt_can, {"canudos": df_can})
+             
+             st.write("---")
+
+             # Métricas Gerais
+             c1, c2, c3, c4 = st.columns(4)
+             with c1:
+                 st.metric("Total Peças Boas", f"{df_can['pecas_boas'].sum():,.0f}".replace(",", "."))
+             with c2:
+                 st.metric("Total Perdas", f"{df_can['perdas'].sum():,.0f}".replace(",", "."))
+             with c3:
+                 eff = 0
+                 total_geral = df_can['pecas_boas'].sum() + df_can['perdas'].sum()
+                 if total_geral > 0:
+                     eff = (df_can['pecas_boas'].sum() / total_geral) * 100
+                 st.metric("Eficiência Global", f"{eff:.1f}%")
+             with c4:
+                 loss_pct = 0
+                 if total_geral > 0:
+                     loss_pct = (df_can['perdas'].sum() / total_geral) * 100
+                 st.metric("% Perdas", f"{loss_pct:.1f}%")
+
+             st.write("---")
+             
+             # Gráfico Comparativo: Peças Boas vs Perdas (Agrupado por Data)
+             st.write("#### Produção Diária: Peças Boas vs Perdas")
+             
+             # Agrupar por data para o gráfico
+             df_grouped = df_can.groupby('data')[['pecas_boas', 'perdas']].sum().reset_index()
+             
+             # Format: DD/MM (Dia)
+             dias_semana = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
+             df_grouped['data_label'] = df_grouped['data'].dt.strftime('%d/%m') + " (" + df_grouped['data'].dt.dayofweek.map(dias_semana) + ")"
+             
+             # Melt para formato do Plotly (Barras Agrupadas)
+             df_melted = df_grouped.melt(id_vars='data_label', value_vars=['pecas_boas', 'perdas'], 
+                                        var_name='Tipo', value_name='Quantidade')
+             
+             # Mapeamento de nomes para legenda
+             df_melted['Tipo'] = df_melted['Tipo'].map({'pecas_boas': 'Peças Boas', 'perdas': 'Perdas'})
+             
+             fig_can = px.bar(df_melted, x='data_label', y='Quantidade', color='Tipo',
+                             barmode='group',
+                             text='Quantidade',
+                             labels={'Quantidade': 'Qtd. Peças', 'data_label': '', 'Tipo': ''},
+                             # Cores: Cyan para Boas, Vermelho/Laranja ou Azul Escuro para Perdas?
+                             # Vamos usar Cyan (#00adef) para Boas e Magenta/Roxo (#e91e63 ou da paleta #1a335f) para contrastar
+                             # Usando Paleta do App: Cyan vs Dark Blue
+                             color_discrete_map={'Peças Boas': '#00adef', 'Perdas': '#1a335f'})
+                             
+             fig_can.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+             
+             # Linha Mediana (Peças Boas)
+             median_boas = df_grouped['pecas_boas'].median()
+             fig_can.add_hline(y=median_boas, line_dash="dash", line_color="#89c153", 
+                              annotation_text=f"Mediana: {median_boas:,.0f}", 
+                              annotation_position="top left",
+                              annotation_font_color="#89c153")
+             
+             fig_can.update_layout(
+                 paper_bgcolor='rgba(0,0,0,0)',
+                 plot_bgcolor='rgba(0,0,0,0)',
+                 height=450,
+                 margin=dict(t=30, b=40, l=0, r=0),
+                 legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+             )
+             st.plotly_chart(fig_can, use_container_width=True)
+             
+             st.write("---")
+             st.write("#### Análise por Turno")
+
+             # 1. Peças por Hora, por Turno
+             # Se houver dados de HORA (>0), usamos hourly agregation. Se não, mostramos aviso ou agrupamos só por Turno.
+             # O usuário pediu "peças por hora, por turno". Vamos assumir X=Hora, Y=Peças, Color=Turno
+             if df_can['hora'].sum() > 0:
+                 df_hora_turno = df_can.groupby(['turno', 'hora'])['pecas_boas'].sum().reset_index()
+                 fig_hora = px.bar(df_hora_turno, x='hora', y='pecas_boas', color='turno',
+                                  title="Peças por Hora (Detalhado por Turno)",
+                                  labels={'hora': 'Hora do Dia', 'pecas_boas': 'Qtd. Peças', 'turno': 'Turno'},
+                                  color_discrete_sequence=['#00adef', '#1a335f', '#89c153']) # Cyan, Blue, Green
+                 
+                 # Linha Mediana (Hora)
+                 median_hora = df_hora_turno['pecas_boas'].median()
+                 fig_hora.add_hline(y=median_hora, line_dash="dash", line_color="#89c153",
+                                   annotation_text=f"Mediana: {median_hora:,.0f}",
+                                   annotation_position="top left",
+                                   annotation_font_color="#89c153")
+                                   
+                 fig_hora.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                 st.plotly_chart(fig_hora, use_container_width=True)
+             else:
+                 # Se não tiver hora, não dá pra fazer "por hora".
+                 pass 
+                 # st.warning("Dados não contêm informação de hora para detalhamento horário.")
+
+             # Layout para Produção e Perdas por Turno
+             c_t1, c_t2 = st.columns(2)
+             
+             with c_t1:
+                 # Produção por Turno
+                 df_prod_turno = df_can.groupby('turno')['pecas_boas'].sum().reset_index()
+                 fig_pt = px.pie(df_prod_turno, names='turno', values='pecas_boas',
+                                title="Produção Total por Turno",
+                                color_discrete_sequence=['#00adef', '#1a335f', '#89c153'])
+                 fig_pt.update_traces(textposition='inside', textinfo='percent+label')
+                 fig_pt.update_layout(
+                     paper_bgcolor='rgba(0,0,0,0)', 
+                     plot_bgcolor='rgba(0,0,0,0)', 
+                     height=350
+                 )
+                 st.plotly_chart(fig_pt, use_container_width=True)
+                 
+             with c_t2:
+                 # Perdas por Turno
+                 df_loss_turno = df_can.groupby('turno')['perdas'].sum().reset_index()
+                 fig_lt = px.pie(df_loss_turno, names='turno', values='perdas',
+                                title="Perdas Totais por Turno",
+                                color_discrete_sequence=['#1a335f', '#00adef', '#89c153']) # Dark Blue first for losses logic (optional variation)
+                 fig_lt.update_traces(textposition='inside', textinfo='percent+label')
+                 fig_lt.update_layout(
+                     paper_bgcolor='rgba(0,0,0,0)',
+                     plot_bgcolor='rgba(0,0,0,0)', 
+                     height=350
+                 )
+                 st.plotly_chart(fig_lt, use_container_width=True)
+                
+        else:
+            st.info("Arquivo 'Canudos.xlsx' não carregado ou vazio. Verifique se o arquivo está na pasta.")
+
+    if selected_tab == "Assistente IA":
         # Input do chat
         prompt = st.chat_input("Qual a sua dúvida?")
 
@@ -1291,7 +1700,7 @@ with col_meio:
 
 
 
-    with tab_financeiro:
+    if selected_tab == "Custo":
         st.subheader("Visão de Custos por Produto")
         
         if not st.session_state.trabalhos_df.empty:
@@ -1317,7 +1726,22 @@ with col_meio:
             # 1. Top 10 High-Cost Products (Full Width)
             st.write("#### Top 10: Produtos com Maior Custo (1000 un.)")
             df_top10 = df_fin.nlargest(10, 'custo_total_tinta_mil')[['referencia', 'produto', 'decoracao', 'custo_total_tinta_mil']].copy()
-            df_top10['label'] = df_top10['referencia'] + " - " + df_top10['produto'] + " (" + df_top10['decoracao'] + ")"
+            
+            # Função de limpeza local
+            def clean_name_cost(name):
+                if not isinstance(name, str): return str(name)
+                # Separar letras/números
+                name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+                name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+                # Remover palavras indesejadas
+                name = name.lower().replace('garrafa', '').replace('corpo', '')
+                # Formatar
+                name = name.title()
+                name = re.sub(r'\b[mM][lL]\b', 'ml', name)
+                return name.strip()
+
+            df_top10['produto_clean'] = df_top10['produto'].apply(clean_name_cost)
+            df_top10['label'] = df_top10['referencia'] + " - " + df_top10['produto_clean'] + " (" + df_top10['decoracao'] + ")"
             
             # Ordenar do MAIOR para o MENOR para que o maior fique no TOPO no gráfico horizontal
             df_top10 = df_top10.sort_values('custo_total_tinta_mil', ascending=True)
@@ -1325,7 +1749,7 @@ with col_meio:
             fig_top10 = px.bar(df_top10, x='custo_total_tinta_mil', y='label', orientation='h',
                               text='custo_total_tinta_mil', color='produto', 
                               labels={'custo_total_tinta_mil': 'Custo (R$)', 'label': 'Produto (Decoração)'},
-                              color_discrete_sequence=px.colors.qualitative.Plotly,
+                              color_discrete_sequence=['#4466b1', '#00adef', '#09a38c', '#89c153'],
                               category_orders={"label": df_top10['label'].tolist()}) # Forçar a ordem exata do DF
             
             fig_top10.update_traces(
@@ -1340,6 +1764,8 @@ with col_meio:
                 showlegend=False,
                 xaxis_visible=False,
                 coloraxis_showscale=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
                 yaxis={'categoryorder':'array', 'categoryarray': df_top10['label'].tolist()}
             )
             st.plotly_chart(fig_top10, use_container_width=True)
@@ -1355,7 +1781,7 @@ with col_meio:
             )
             
             # (Removido sugestão de formação de preço conforme solicitado)
-    with tab_analitico:
+    if selected_tab == "Analítico":
         st.subheader("Análise de Performance e Consumo")
         
         if not st.session_state.trabalhos_df.empty:
@@ -1386,15 +1812,42 @@ with col_meio:
                 st.write("#### Distribuição de Tintas por Cor (%)")
                 cons_cor = df_ana[cores].sum().reset_index()
                 cons_cor.columns = ['Cor', 'Volume']
+                
+                # Mapeamento explícito para diferenciar cores
+                # Cyan (tinta) -> #00adef (Ciano)
+                # Varnish (tinta) -> #4466b1 (Azul Médio) - Diferente do Ciano
+                # Magenta -> #89c153 (Verde Lima) - Contraste
+                # Yellow -> #e91e63 (Magenta?) Ou melhor seguir paleta? 
+                # Vamos usar a paleta mas garantindo contraste
+                color_map = {
+                    'cyan': '#00adef',    # Ciano Brilhante
+                    'magenta': '#1a335f', # Azul Escuro
+                    'yellow': '#89c153',  # Verde Lima (Claro)
+                    'black': '#000000',   # Preto (ou bem escuro) - mas tema é dark. Vamos usar branco ou cinza se fundo for transparente? O tema é glass. 
+                                          # Melhor seguir a paleta de 5 cores para consistência visual do App
+                    'white': '#ffffff',
+                    'varnish': '#4466b1'  # Azul Médio
+                }
+                # Ajuste para paleta do tema (override parcial para consistência)
+                # Cyan: #00adef
+                # Varnish: #4466b1 (Azul Médio) -> Diferente do Cyan
+                # Demais distribuídos
+                
                 fig_pie = px.pie(cons_cor, values='Volume', names='Cor', color='Cor',
                                color_discrete_map={
-                                   'cyan': '#00BFFF', 'magenta': '#FF00FF', 
-                                   'yellow': '#FFFF00', 'black': '#444444',
-                                   'white': '#FFFFFF', 'varnish': '#C0C0C0'
-                               }, hole=0.4)
+                                   'cyan': '#00adef',     # Ciano
+                                   'varnish': '#1a335f',  # Azul Escuro (Para diferenciar bem do ciano)
+                                   'magenta': '#4466b1',  # Azul Médio
+                                   'yellow': '#89c153',   # Verde Lima
+                                   'black': '#09a38c',    # Teal
+                                   'white': '#d3d3d3'     # Cinza claro
+                               },
+                               hole=0.4)
                 fig_pie.update_layout(
                     margin=dict(t=20, b=80, l=0, r=0), 
                     height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_pie, use_container_width=True)
@@ -1403,11 +1856,14 @@ with col_meio:
                 st.write("#### Mix de Produtos (Qtd de Fichas)")
                 prod_counts = df_ana['produto'].value_counts().reset_index()
                 prod_counts.columns = ['produto', 'quantidade']
-                fig_prod = px.pie(prod_counts, values='quantidade', names='produto', hole=0.4)
+                fig_prod = px.pie(prod_counts, values='quantidade', names='produto', hole=0.4,
+                                 color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'])
                 fig_prod.update_traces(textinfo='percent')
                 fig_prod.update_layout(
                     margin=dict(t=20, b=80, l=0, r=0), 
                     height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_prod, use_container_width=True)
@@ -1419,12 +1875,12 @@ with col_meio:
             avg_cons = df_ana[cores].mean().reset_index()
             avg_cons.columns = ['Cor', 'Média de Consumo']
             fig_bar = px.bar(avg_cons, x='Cor', y='Média de Consumo', color='Cor',
-                            color_discrete_map={
-                                'cyan': '#00BFFF', 'magenta': '#FF00FF', 
-                                'yellow': '#FFFF00', 'black': '#444444',
-                                'white': '#FFFFFF', 'varnish': '#C0C0C0'
-                            })
-            fig_bar.update_layout(showlegend=False)
+                            color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'])
+            fig_bar.update_layout(
+                showlegend=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+            )
             st.plotly_chart(fig_bar, use_container_width=True)
 
             st.write("---")
@@ -1432,9 +1888,13 @@ with col_meio:
             # 3. TreeMap (Hierarquia de Consumo)
             st.write("#### Hierarquia de Consumo (Decoração > Produto)")
             fig_tree = px.treemap(df_ana, path=['decoracao', 'produto'], values='total_ml',
-                                 color='total_ml', color_continuous_scale='Viridis',
+                                 color='total_ml', color_continuous_scale=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
                                  labels={'total_ml': '', 'decoracao': 'Decoração', 'produto': 'Produto'})
-            fig_tree.update_layout(coloraxis_showscale=False)
+            fig_tree.update_layout(
+                coloraxis_showscale=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+            )
             st.plotly_chart(fig_tree, use_container_width=True)
 
             st.write("---")
@@ -1505,6 +1965,257 @@ with col_meio:
 
         else:
             st.info("Nenhum dado disponível para análise analítica.")
+
+    if selected_tab == "Produção":
+        st.subheader("Controle de Produção")
+        
+        if not st.session_state.get("producao_df", pd.DataFrame()).empty:
+            df_prod = st.session_state.producao_df.copy()
+            
+            # --- Filtros (Igual OEE) ---
+            st.markdown("#### Filtros")
+            c1, c2 = st.columns(2)
+            with c1:
+                maquinas_prod = ["Todas"] + sorted(df_prod['maquina'].unique().tolist())
+                sel_maquina_prod = st.selectbox("Máquina", maquinas_prod, key="prod_maq")
+            with c2:
+                if not df_prod['data'].empty:
+                    min_date_prod = df_prod['data'].min()
+                    max_date_prod = df_prod['data'].max()
+                    
+                    # Default para Ontem
+                    yesterday_prod = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+                    default_val_prod = (yesterday_prod, yesterday_prod)
+                    
+                    if pd.notnull(min_date_prod):
+                        visual_min_prod = min(min_date_prod.date(), yesterday_prod)
+                    else:
+                        visual_min_prod = yesterday_prod
+
+                    sel_dates_prod = st.date_input("Período", value=default_val_prod, min_value=visual_min_prod, max_value=max_date_prod, key="prod_date")
+                else:
+                    sel_dates_prod = []
+
+            # Aplicação dos filtros
+            if sel_maquina_prod != "Todas":
+                df_prod = df_prod[df_prod['maquina'] == sel_maquina_prod]
+            
+            if len(sel_dates_prod) == 2:
+                df_prod = df_prod[(df_prod['data'] >= pd.Timestamp(sel_dates_prod[0])) & (df_prod['data'] <= pd.Timestamp(sel_dates_prod[1]))]
+
+            st.markdown("### Pergunte sobre os dados de Produção")
+            prompt_prod = st.chat_input("Ex: Quem foi o operador mais produtivo hoje?", key="chat_producao")
+            if prompt_prod:
+               with st.chat_message("user"): st.markdown(prompt_prod)
+               with st.chat_message("assistant"):
+                   process_chat_request(prompt_prod, {"producao": df_prod})
+
+            if not df_prod.empty:
+                # --- Métricas Gerais ---
+                total_pecas = df_prod['producao_total'].sum()
+                total_boas = df_prod['pecas_boas'].sum()
+                total_rejeito = df_prod['rejeito'].sum()
+                
+                # Evitar divisão por zero
+                perc_boas = (total_boas / total_pecas) if total_pecas > 0 else 0
+                perc_rejeito = (total_rejeito / total_pecas) if total_pecas > 0 else 0
+
+                # Linha 1: Contagens Absolutas
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("Total de Peças", f"{total_pecas:,.0f}".replace(",", "."))
+                with c2:
+                    st.metric("Peças Boas", f"{total_boas:,.0f}".replace(",", "."))
+                with c3:
+                    st.metric("Rejeitos", f"{total_rejeito:,.0f}".replace(",", "."))
+                
+                # Linha 2: Porcentagens
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    st.metric("% Peças Boas", f"{perc_boas:.1%}")
+                with c5:
+                    st.metric("% Rejeitos", f"{perc_rejeito:.1%}")
+                with c6:
+                    st.empty() # Espaço vazio para manter alinhamento
+                    
+                st.write("---")
+                
+                # 1. Gráfico de Peças Produzidas por Máquina
+                st.write("#### Peças Produzidas Por Máquina")
+                
+                # Agrupar por máquina
+                df_maq_prod = df_prod.groupby('maquina')['pecas_boas'].sum().reset_index().sort_values('pecas_boas', ascending=False)
+                
+                fig_prod_maq = px.bar(df_maq_prod, x='maquina', y='pecas_boas', color='maquina',
+                                     text='pecas_boas',
+                                     labels={'pecas_boas': 'Peças Boas', 'maquina': 'Máquina'},
+                                     # Usando a paleta de 5 cores
+                                     color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'])
+                                     
+                fig_prod_maq.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                fig_prod_maq.update_layout(
+                    yaxis_visible=False,
+                    showlegend=False,
+                    height=500,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(t=30, b=50, l=0, r=0)
+                )
+                st.plotly_chart(fig_prod_maq, use_container_width=True)
+                
+                st.write("---")
+                
+                # --- NOVOS GRÁFICOS ---
+                
+                # 1. Evolução Diária (Barras)
+                st.write("#### Produção Diária (Peças Boas)")
+                df_daily_prod = df_prod.groupby('data')['pecas_boas'].sum().reset_index()
+                # Formatar data para DD/MM
+                df_daily_prod['data_label'] = df_daily_prod['data'].dt.strftime('%d/%m')
+                
+                fig_daily_prod = px.bar(df_daily_prod, x='data_label', y='pecas_boas',
+                                         labels={'pecas_boas': 'Peças Boas', 'data_label': 'Data'},
+                                         text='pecas_boas',
+                                         color_discrete_sequence=['#00adef']) # Cyan
+                fig_daily_prod.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
+                fig_daily_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=350,
+                    margin=dict(t=20, b=40, l=0, r=0)
+                )
+                st.plotly_chart(fig_daily_prod, use_container_width=True)
+                
+                st.write("---")
+
+                # 2. Evolução Horária (Linha) -> Agora Barra
+                st.write("#### Evolução Horária da Produção")
+                df_hourly_prod = df_prod.groupby('hora')['pecas_boas'].sum().reset_index()
+                # Filtrar apenas das 06 às 22
+                df_hourly_prod = df_hourly_prod[(df_hourly_prod['hora'] >= 6) & (df_hourly_prod['hora'] <= 22)]
+                
+                fig_hourly_prod = px.bar(df_hourly_prod, x='hora', y='pecas_boas',
+                                         labels={'pecas_boas': 'Peças Boas', 'hora': 'Hora'},
+                                         color_discrete_sequence=['#00adef']) # Usando Cyan para destaque
+                fig_hourly_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=350,
+                    margin=dict(t=20, b=40, l=0, r=0)
+                )
+                st.plotly_chart(fig_hourly_prod, use_container_width=True)
+                
+                # 3. Ranking de Operadores (Filtrado)
+                st.write("#### Ranking de Operadores")
+                target_ops = ["Marcus Vinicius", "Yuri Franco", "Diego Matheus", "Matheus Anzolin"]
+                # Filtrar apenas os operadores solicitados. Normalizar para evitar problemas de case se necessário
+                df_op_prod = df_prod[df_prod['operador'].astype(str).str.strip().isin(target_ops)]
+                
+                if df_op_prod.empty:
+                     # Fallback caso os nomes não batam exatamente, tenta busca parcial ou mostra todos
+                     df_op_prod = df_prod[df_prod['operador'].astype(str).str.contains('|'.join(target_ops), case=False, na=False)]
+                
+                # Agrupar e ordenar
+                df_op_prod_grouped = df_op_prod.groupby('operador')['pecas_boas'].sum().reset_index().sort_values('pecas_boas', ascending=True)
+
+                fig_op = px.bar(df_op_prod_grouped, x='pecas_boas', y='operador', orientation='h',
+                               text='pecas_boas',
+                               color='operador', # Adicionar cor por operador
+                               labels={'pecas_boas': '', 'operador': ''},
+                               color_discrete_sequence=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153']) # Paleta para diferenciar
+                
+                fig_op.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
+                fig_op.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=400,
+                    xaxis_visible=False,
+                    yaxis={'categoryorder':'total ascending'}, # Garante maior no TOPO
+                    showlegend=False, # Esconder legenda pois nomes já estão no eixo Y
+                    margin=dict(t=30, b=0, l=0, r=0)
+                )
+                st.plotly_chart(fig_op, use_container_width=True)
+                    
+                
+                # 4. Comparativo de Turnos (Nova Linha)
+                st.write("#### Comparativo de Turnos")
+                df_shift_prod = df_prod.groupby('turno')['pecas_boas'].sum().reset_index().sort_values('turno') # Ordenar alfabeticamente (A, B, C)
+                
+                fig_shift_prod = px.pie(df_shift_prod, values='pecas_boas', names='turno',
+                                       color='turno',
+                                       color_discrete_sequence=['#4466b1', '#00adef', '#09a38c'], # Blue/Cyan mix
+                                       hole=0.5)
+                fig_shift_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    height=400,
+                    margin=dict(t=30, b=20, l=0, r=0),
+                    legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_shift_prod, use_container_width=True)
+                    
+                st.write("---")
+                
+                # 5. Top Produtos
+                st.write("#### Top Produtos Mais Fabricados")
+                
+                # Função de limpeza de nome
+                def clean_prod_name(name):
+                    if not isinstance(name, str): return str(name)
+                    # 1. Remover código antes do primeiro " - "
+                    if ' - ' in name:
+                        name = name.split(' - ', 1)[1]
+                    
+                    # 2. Separar letras de números (ex: Facil530 -> Facil 530)
+                    name = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', name)
+                    # 2b. Separar números de unidades/letras (ex: 530ML -> 530 ML)
+                    name = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', name)
+                    
+                    # 3. Remover palavras desnecessárias (Inicio e fim)
+                    name = name.lower()
+                    name = name.replace('corpo ', '').replace('garrafa ', '')
+                    name = name.replace(' 2023', '').replace(' 2024', '')
+                    
+                    # 4. Formatação Title Case
+                    name = name.title()
+                    
+                    # 5. Ajustes finos de unidade e pontuação
+                    # Forçar 'ml' e 'mm' minúsculos ignorando o Title Case anterior
+                    name = re.sub(r'\b[mM][lL]\b', 'ml', name)
+                    name = re.sub(r'\b[mM][mM]\b', 'mm', name)
+                    
+                    name = name.replace(' - ', ' ') # Remover hifens restantes
+                    
+                    return name.strip()
+
+                df_top_prod = df_prod.groupby('produto')['pecas_boas'].sum().reset_index().sort_values('pecas_boas', ascending=False).head(10)
+                df_top_prod['produto_label'] = df_top_prod['produto'].apply(clean_prod_name)
+                
+                fig_top_prod = px.bar(df_top_prod, x='pecas_boas', y='produto_label', orientation='h',
+                                     text='pecas_boas',
+                                     color='pecas_boas',
+                                     color_continuous_scale=['#1a335f', '#4466b1', '#00adef', '#09a38c', '#89c153'],
+                                     labels={'pecas_boas': '', 'produto_label': ''})
+                                     
+                fig_top_prod.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    yaxis={'categoryorder':'total ascending'}, # Garante maior em cima
+                    height=500,
+                    coloraxis_showscale=False,
+                    xaxis_visible=True, # Mostrar eixo X para referência de volume
+                    margin=dict(t=30, b=0, l=0, r=0)
+                )
+                fig_top_prod.update_traces(texttemplate='%{text:,.0f}', textposition='inside', textfont_color='white')
+                
+                st.plotly_chart(fig_top_prod, use_container_width=True)
+
+                
+            else:
+                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
+            
+        else:
+            st.info("Carregue o arquivo 'producao.xlsx' para visualizar os dados.")
 
 
 # Footer
