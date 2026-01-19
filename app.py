@@ -261,12 +261,31 @@ div {{
     font-family: 'SamsungSharpSans', sans-serif !important;
 }}
 
-/* RESTAURAR ÍCONES */
+/* RESTAURAR ÍCONES E ESCONDER TEXTO VAZADO */
 [data-testid="stIconMaterial"], 
 .material-icons,
-.material-symbols-outlined,
-i {{
-    font-family: 'Material Symbols Outlined', 'Material Icons', 'serif' !important;
+.material-symbols-outlined {{
+    font-family: 'Material Symbols Outlined', 'Material Icons' !important;
+    display: inline-block !important;
+    width: 24px !important;
+    height: 24px !important;
+    overflow: hidden !important;
+    color: inherit !important;
+    vertical-align: middle !important;
+    font-size: 24px !important;
+}}
+
+/* Fix para expanders: esconde o "texto" do ícone mas mantém o label visível */
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {{
+    color: transparent !important; /* Esconde o texto que forma o ícone se o glifo falhar */
+    position: relative;
+    font-size: 0 !important;
+}}
+
+/* Tenta forçar o ícone de volta como SVG ou via renderização do Streamlit */
+[data-testid="stExpander"] summary svg {{
+    display: block !important;
+    color: white !important;
 }}
 
 /* Correção para o texto no cabeçalho */
@@ -631,59 +650,51 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
 [data-testid="stRadio"] > div[role="radiogroup"] {
     display: flex;
     flex-direction: row;
-    justify-content: space-between; /* Distribui o espaço */
+    justify-content: flex-start;
     align-items: center;
-    gap: 5px; /* Reduzido de 10px */
-    width: 100%; /* Garante uso total da largura */
-    flex-wrap: nowrap; /* IMPEDE quebra de linha */
+    gap: 0px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    flex-wrap: nowrap;
     background-color: transparent !important;
-    padding-bottom: 0px !important;
-    overflow-x: auto; /* Permite scroll se muito pequeno, mas tentaremos encaixar */
-}
-
-/* Esconder barra de rolagem */
-[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar {
-  display: none;
+    padding: 0 !important;
+    overflow: visible !important;
 }
 
 [data-testid="stRadio"] > div[role="radiogroup"] > label {
     background: transparent !important;
-    padding: 10px 5px !important; /* Reduzido padding lateral */
+    padding: 8px 3px !important;
     cursor: pointer !important;
     border-radius: 5px 5px 0 0 !important;
     transition: all 0.3s !important;
-    flex: 1 1 auto; /* Permite crescer e encolher */
-    min-width: 0; /* Permite encolher abaixo do conteúdo se necessário */
+    flex: 1 1 auto;
+    min-width: 0;
     text-align: center !important;
     justify-content: center !important;
-    margin-right: 0px !important;
+    margin: 0 !important;
     border: none !important;
-    white-space: nowrap; /* Mantém texto em uma linha */
-    overflow: hidden;
-    text-overflow: ellipsis; /* ... se cortar muito */
+    white-space: nowrap;
+    overflow: visible !important;
 }
 
-/* Esconder bolinha do radio */
+/* Esconder bolinha do radio (Removendo o que o usuário não pediu) */
 [data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child {
     display: none !important;
 }
 
-/* Texto do item - Responsivo e Sem Cortes */
+/* Texto do item - Escala adaptativa para 7 abas */
 [data-testid="stRadio"] > div[role="radiogroup"] > label > div[data-testid="stMarkdownContainer"] p {
-    font-size: clamp(0.6rem, 1.2vw, 1rem) !important;
+    font-size: clamp(0.45rem, 0.9vw, 0.85rem) !important;
     font-weight: bold !important;
     color: rgba(255, 255, 255, 0.6) !important;
     margin: 0 !important;
-    white-space: nowrap;
+    padding: 0 !important;
 }
 
-/* --- RESPONSIVIDADE ADAPTATIVA (MOBILE E TELHAS) --- */
-@media (max-width: 800px) {
-    [data-testid="stRadio"] > div[role="radiogroup"] {
-        gap: 2px;
-    }
+/* --- RESPONSIVIDADE EXTREMA --- */
+@media (max-width: 768px) {
     [data-testid="stRadio"] > div[role="radiogroup"] > label {
-        padding: 5px 2px !important;
+        padding: 5px 1px !important;
     }
 }
 
@@ -1403,9 +1414,9 @@ with col_meio:
                     height=400,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(t=20, b=80, l=60, r=40),
+                    margin=dict(t=20, b=100, l=60, r=40),
                     legend_title_text='',
-                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                    legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5)
                 )
                 
                 st.plotly_chart(fig_line, use_container_width=True)
@@ -1465,9 +1476,9 @@ with col_meio:
                     yaxis_visible=False, height=400,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(t=30, b=30, l=0, r=0),
+                    margin=dict(t=30, b=100, l=0, r=0),
                     legend_title_text='',
-                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+                    legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_shift, use_container_width=True)
                 
@@ -1543,9 +1554,9 @@ with col_meio:
                     height=350,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(t=30, b=30, l=0, r=0),
+                    margin=dict(t=30, b=80, l=0, r=0),
                     legend_title_text='',
-                    legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                    legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_buckets, use_container_width=True)
                 
@@ -1678,14 +1689,43 @@ with col_meio:
                  paper_bgcolor='rgba(0,0,0,0)',
                  plot_bgcolor='rgba(0,0,0,0)',
                  height=450,
-                 margin=dict(t=30, b=40, l=0, r=0),
-                 legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                 margin=dict(t=30, b=100, l=0, r=0),
+                 legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5)
              )
              st.plotly_chart(fig_can, use_container_width=True)
              
              st.write("---")
              st.write("#### Análise por Turno")
 
+             # Lógica de Turnos Customizados (Solicitado: A das 6 as 14, B das 14 as 22)
+             def get_custom_shift(h):
+                 if 6 <= h < 14: return "Turno A (06-14h)"
+                 if 14 <= h < 22: return "Turno B (14-22h)"
+                 return "Outros"
+
+             df_can['turno_custom'] = df_can['hora'].apply(get_custom_shift)
+             
+             # Filtrar apenas turnos A e B para o gráfico comparativo solicitado
+             df_shifts_can = df_can[df_can['turno_custom'].isin(["Turno A (06-14h)", "Turno B (14-22h)"])]
+             
+             if not df_shifts_can.empty:
+                 df_shift_sum = df_shifts_can.groupby('turno_custom')['pecas_boas'].sum().reset_index()
+                 fig_custom_shift = px.bar(df_shift_sum, x='turno_custom', y='pecas_boas',
+                                          color='turno_custom',
+                                          text='pecas_boas',
+                                          labels={'pecas_boas': 'Peças Boas', 'turno_custom': 'Turno'},
+                                          color_discrete_map={"Turno A (06-14h)": "#00adef", "Turno B (14-22h)": "#1a335f"})
+                 
+                 fig_custom_shift.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                 fig_custom_shift.update_layout(
+                     paper_bgcolor='rgba(0,0,0,0)',
+                     plot_bgcolor='rgba(0,0,0,0)',
+                     height=400,
+                     margin=dict(t=30, b=50, l=0, r=0),
+                     showlegend=False
+                 )
+                 st.plotly_chart(fig_custom_shift, use_container_width=True)
+             
              # 1. Peças por Hora, por Turno
              # Se houver dados de HORA (>0), usamos hourly agregation. Se não, mostramos aviso ou agrupamos só por Turno.
              # O usuário pediu "peças por hora, por turno". Vamos assumir X=Hora, Y=Peças, Color=Turno
@@ -1778,16 +1818,8 @@ with col_meio:
 
 
     if selected_tab == "Fichas":
-        st.subheader("Gestão e Análise de Fichas Técnicas")
-        
         if not st.session_state.trabalhos_df.empty:
             df_fichas = st.session_state.trabalhos_df.copy()
-            
-            # Filtro de busca unificado
-            search_fichas = st.text_input("Filtrar por Referência ou Produto", "")
-            if search_fichas:
-                df_fichas = df_fichas[df_fichas['produto'].str.contains(search_fichas, case=False, na=False) | 
-                                     df_fichas['referencia'].str.contains(search_fichas, case=False, na=False)]
             
             # --- SEÇÃO FINANCEIRA ---
             st.write("### Análise Financeira")
@@ -2020,7 +2052,7 @@ with col_meio:
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
                     height=350,
-                    margin=dict(t=20, b=40, l=0, r=0)
+                    margin=dict(t=20, b=60, l=0, r=0)
                 )
                 st.plotly_chart(fig_daily_prod, use_container_width=True)
                 
