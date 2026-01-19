@@ -1,0 +1,17 @@
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Data files (Sensitive)
+fichas_tecnicas.db
+oee teep.xlsx
+Canudos.xlsx
+erros.xlsx
+producao.xlsx
+custos.xlsx
