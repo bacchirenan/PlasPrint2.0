@@ -1,4 +1,7 @@
 import streamlit as st
+if "run_count" not in st.session_state: st.session_state.run_count = 0
+st.session_state.run_count += 1
+print(f"\n--- EXECUÇÃO #{st.session_state.run_count} ---")
 import pandas as pd
 import json, base64, os, re, requests, io, sqlite3, glob
 import gspread
@@ -9,6 +12,14 @@ import datetime
 import time
 import PIL.Image
 import plotly.express as px
+import plotly.io as pio
+import kaleido
+from fpdf import FPDF
+import warnings
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+
+# Suprimir avisos de depreciação do Kaleido para não poluir o log
+warnings.simplefilter("ignore", category=DeprecationWarning)
 
 # ===== Configuração da página =====
 st.set_page_config(page_title="PlasPrint IA", page_icon="favicon.ico", layout="wide")
@@ -45,7 +56,159 @@ def init_db():
 
 init_db()
 
-# ===== Funções auxiliares =====
+class PDFReport(FPDF):
+    def header(self):
+        if os.path.exists("logo.png"):
+            self.image("logo.png", 10, 8, 25)
+        self.set_font('Arial', 'B', 15)
+        self.cell(80)
+        self.cell(30, 10, 'Relatório Técnico PlasPrint IA', 0, 0, 'C')
+        self.ln(20)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Página {self.page_no()} | Gerado em {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 0, 'C')
+
+def create_pdf_report(selected_elements, data_sources):
+    print(f">>> [PDF] Iniciando criação do relatório com {len(selected_elements)} elementos")
+    pdf = PDFReport()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # Função auxiliar para exportar gráfico com timeout
+    def export_chart_with_timeout(fig):
+        """Exporta o gráfico usando Kaleido"""
+        # Configurações para exportação clara
+        fig.update_layout(
+            paper_bgcolor='white',
+            plot_bgcolor='white',
+            font=dict(color='black')
+        )
+        
+        # Exportar usando pio.to_image
+        img_bytes = pio.to_image(fig, format="png", width=800, height=450, scale=2)
+        return img_bytes
+    
+    # Função auxiliar para adicionar gráfico ao PDF com timeout
+    def add_plotly_chart(fig, title):
+        print(f">>> [PDF] Gerando imagem para o gráfico: {title}")
+        try:
+            # Usar ThreadPoolExecutor com timeout de 15 segundos
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(export_chart_with_timeout, fig)
+                try:
+                    # Aguardar até 15 segundos pelo resultado
+                    img_bytes = future.result(timeout=15)
+                    
+                    # Sucesso - adicionar imagem ao PDF
+                    pdf.add_page()
+                    pdf.set_font('Arial', 'B', 12)
+                    pdf.cell(0, 10, title, 0, 1)
+                    
+                    img_path = f"temp_chart_{datetime.now().timestamp()}.png"
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    pdf.image(img_path, x=10, y=None, w=190)
+                    os.remove(img_path)
+                    print(f">>> [PDF] Gráfico '{title}' adicionado com sucesso")
+                    
+                except FutureTimeoutError:
+                    # Timeout - processo travou
+                    print(f">>> [KALEIDO] TIMEOUT ao exportar gráfico '{title}' - processo travou após 15 segundos")
+                    
+                    # Adicionar página de erro
+                    pdf.add_page()
+                    pdf.set_font('Arial', 'B', 12)
+                    pdf.cell(0, 10, title, 0, 1)
+                    pdf.ln(5)
+                    pdf.set_font('Arial', 'I', 9)
+                    pdf.multi_cell(0, 5, f"Erro: Timeout ao gerar gráfico (processo travou após 15 segundos)")
+                    pdf.ln(5)
+                    pdf.set_font('Arial', '', 9)
+                    pdf.multi_cell(0, 5, "Possíveis soluções:\n1. Tente gerar o PDF novamente\n2. Reduza a quantidade de gráficos selecionados\n3. Reinstale o Kaleido: pip uninstall kaleido && pip install kaleido==0.2.1\n4. Verifique se há processos Kaleido travados no Gerenciador de Tarefas\n5. Reinicie o aplicativo Streamlit")
+                    
+                except Exception as e:
+                    # Erro durante exportação
+                    error_msg = str(e)
+                    print(f">>> [PDF] ERRO ao gerar gráfico '{title}': {error_msg}")
+                    pdf.add_page()
+                    pdf.set_font('Arial', 'B', 12)
+                    pdf.cell(0, 10, title, 0, 1)
+                    pdf.ln(5)
+                    pdf.set_font('Arial', 'I', 9)
+                    pdf.multi_cell(0, 5, f"Erro ao gerar gráfico: {error_msg[:200]}")
+                    pdf.ln(5)
+                    pdf.set_font('Arial', '', 9)
+                    pdf.multi_cell(0, 5, "Possíveis soluções:\n1. Reinstale o Kaleido: pip uninstall kaleido && pip install kaleido==0.2.1\n2. Verifique se há processos Kaleido travados no Gerenciador de Tarefas\n3. Reinicie o aplicativo Streamlit")
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f">>> [PDF] ERRO CRÍTICO ao processar gráfico '{title}': {error_msg}")
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 10, title, 0, 1)
+            pdf.ln(5)
+            pdf.set_font('Arial', 'I', 9)
+            pdf.multi_cell(0, 5, f"Erro crítico: {error_msg[:200]}")
+            pdf.ln(5)
+            pdf.set_font('Arial', '', 9)
+            pdf.multi_cell(0, 5, "Tente gerar o PDF novamente ou contate o suporte técnico.")
+
+    if "Resumo de Produção (Métricas)" in selected_elements:
+        pdf.add_page()
+        df = data_sources.get('df_rep')
+        if df is not None and not df.empty:
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 10, 'Resumo Geral de Produção', 0, 1)
+            pdf.set_font('Arial', '', 10)
+            
+            total_pecas = df['producao_total'].sum()
+            total_boas = df['pecas_boas'].sum()
+            total_rejeito = df['rejeito'].sum()
+            perc_rejeito = (total_rejeito / total_pecas * 100) if total_pecas > 0 else 0
+            
+            pdf.cell(0, 10, f'Total Produzido: {total_pecas:,.0f}'.replace(',', '.'), 0, 1)
+            pdf.cell(0, 10, f'Peças Boas: {total_boas:,.0f}'.replace(',', '.'), 0, 1)
+            pdf.cell(0, 10, f'Total Rejeito: {total_rejeito:,.0f}'.replace(',', '.'), 0, 1)
+            pdf.cell(0, 10, f'Percentual de Perda: {perc_rejeito:.1f}%', 0, 1)
+            pdf.ln(10)
+
+    if "Tabela: Detalhamento por Máquina" in selected_elements:
+        df = data_sources.get('df_rep')
+        if df is not None and not df.empty:
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 10, 'Detalhamento por Máquina', 0, 1)
+            pdf.ln(5)
+            
+            pdf.set_font('Arial', 'B', 9)
+            pdf.cell(50, 8, 'Máquina', 1)
+            pdf.cell(35, 8, 'Produção', 1)
+            pdf.cell(35, 8, 'Boas', 1)
+            pdf.cell(30, 8, 'Rejeito', 1)
+            pdf.cell(30, 8, '% Perda', 1)
+            pdf.ln()
+            
+            pdf.set_font('Arial', '', 8)
+            df_sum = df.groupby('maquina')[['producao_total', 'pecas_boas', 'rejeito']].sum().reset_index()
+            for _, row in df_sum.iterrows():
+                p_loss = (row['rejeito'] / row['producao_total'] * 100) if row['producao_total'] > 0 else 0
+                pdf.cell(50, 8, str(row['maquina'])[:25], 1)
+                pdf.cell(35, 8, f"{row['producao_total']:,.0f}".replace(',', '.'), 1)
+                pdf.cell(35, 8, f"{row['pecas_boas']:,.0f}".replace(',', '.'), 1)
+                pdf.cell(30, 8, f"{row['rejeito']:,.0f}".replace(',', '.'), 1)
+                pdf.cell(30, 8, f"{p_loss:.1f}%", 1)
+                pdf.ln()
+
+    # Adicionar gráficos via loop se forem figs
+    for element in selected_elements:
+        if element.startswith("Gráfico:") and element in data_sources:
+            fig = data_sources[element]
+            if fig:
+                add_plotly_chart(fig, element.replace("Gráfico: ", ""))
+
+    return pdf.output()
+
 def get_usd_brl_rate():
     if "usd_brl_cache" in st.session_state:
         cached = st.session_state.usd_brl_cache
@@ -613,22 +776,7 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
     border: 1px solid rgba(0, 210, 255, 0.3) !important;
 }
 
-/* nuclear fix for ghosting/blur/fade during processing */
-[data-testid="stAppViewBlockContainer"],
-[data-testid="stAppViewBlockContainer"] > div:first-child,
-.main .block-container,
-.stApp {
-    filter: none !important;
-    opacity: 1 !important;
-    backdrop-filter: none !important;
-}
-
-/* also target any element that Streamlit might be dynamically adding filters to */
-div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
-    filter: none !important;
-    opacity: 1 !important;
-    backdrop-filter: none !important;
-}
+/* CSS simplify - removed nuclear fix to test loading */
 
 /* ensure my custom progress bar Pulse still works (it uses opacity) 
    we will scope it specifically so it's not neutralized by the above rule */
@@ -636,9 +784,9 @@ div[style*="filter"], div[style*="opacity"], div[style*="backdrop-filter"] {
     animation: progressPulse 1.5s ease-in-out infinite !important;
 }
 
-/* Desativar o overlay de loading que o Streamlit às vezes coloca sobre elementos individuais */
+/* Skeleton visibility restored to avoid blank screen during load */
 [data-testid="stSkeleton"] {
-    display: none !important;
+    display: block !important;
 }
 
 /* Aplicar transições apenas a elementos específicos se necessário */
@@ -797,8 +945,8 @@ def load_oee_data():
             new_df[col] = new_df[col].astype(str).str.replace('%', '').str.replace(',', '.').str.strip()
             new_df[col] = pd.to_numeric(new_df[col], errors='coerce').fillna(0) / 100.0
             
-        # Converter data para datetime (forçar formato brasileiro Dia/Mês/Ano)
-        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, errors='coerce')
+        # Converter data para datetime
+        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, format='mixed', errors='coerce')
         new_df = new_df.dropna(subset=['data'])
         
         # Filtrar apenas o horário produtivo (06:00 às 21:59)
@@ -814,7 +962,6 @@ def load_oee_data():
             
         new_df['turno'] = new_df['turno'].apply(rename_shift)
         
-        return new_df
         return new_df
     except Exception as e:
         st.error(f"Erro ao carregar oee teep.xlsx: {e}")
@@ -859,7 +1006,7 @@ def load_producao_data():
         new_df = new_df[new_df['data'].notna()]
         
         # Converter data
-        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, errors='coerce')
+        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, format='mixed', errors='coerce')
         new_df = new_df.dropna(subset=['data'])
         
         # Mapear turno
@@ -891,14 +1038,11 @@ def load_canudos_data():
     try:
         # A=0 (Data), B=1 (Turno), C=2 (OS), D=3 (Op), E=4 (Boas), F=5 (Perdas)
         df = pd.read_excel("Canudos.xlsx", header=None, usecols="A:F")
-        target_cols = [0, 1, 2, 3, 4, 5]
-        
-        # Selecionar apenas as colunas desejadas (caso force indices)
-        new_df = df.iloc[:, target_cols].copy()
-        new_df.columns = ['data', 'turno', 'os', 'operador', 'pecas_boas', 'perdas']
+        df.columns = ['data', 'turno', 'os', 'operador', 'pecas_boas', 'perdas']
+        new_df = df.copy()
         
         # Limpeza e Conversão
-        new_df['data'] = pd.to_datetime(new_df['data'], errors='coerce')
+        new_df['data'] = pd.to_datetime(new_df['data'], dayfirst=True, format='mixed', errors='coerce')
         new_df = new_df.dropna(subset=['data']) # Remove linhas sem data (cabeçalho se houver)
         
         # Extrair Hora (se houver informação de tempo)
@@ -922,40 +1066,49 @@ def load_canudos_data():
 
 def refresh_data():
     """Atualiza todos os dados com feedback visual de progresso"""
+    print(">>> Iniciando carregamento de dados...")
     progress_bar = st.sidebar.progress(0)
     status_text = st.sidebar.empty()
     
     status_text.text('Carregando dados de erros...')
     progress_bar.progress(0.15)
     st.session_state.erros_df = read_ws("erros")
+    print(f"    - Erros: {len(st.session_state.erros_df)} registros")
     
     status_text.text('Carregando fichas técnicas...')
     progress_bar.progress(0.30)
     st.session_state.trabalhos_df = read_sqlite("fichas")
+    print(f"    - Fichas: {len(st.session_state.trabalhos_df)} registros")
     
     status_text.text('Carregando dados DACEN...')
     progress_bar.progress(0.45)
     st.session_state.dacen_df = read_ws("dacen")
+    print(f"    - DACEN: {len(st.session_state.dacen_df)} registros")
     
     status_text.text('Carregando dados PSI...')
     progress_bar.progress(0.60)
     st.session_state.psi_df = read_ws("psi")
+    print(f"    - PSI: {len(st.session_state.psi_df)} registros")
     
     status_text.text('Carregando dados gerais...')
     progress_bar.progress(0.75)
     st.session_state.gerais_df = read_ws("gerais")
+    print(f"    - Gerais: {len(st.session_state.gerais_df)} registros")
 
     status_text.text('Carregando dados OEE/TEEP...')
     progress_bar.progress(0.85)
     st.session_state.oee_df = load_oee_data()
+    print(f"    - OEE: {len(st.session_state.oee_df)} registros")
     
     status_text.text('Carregando dados de Produção...')
     progress_bar.progress(0.90)
     st.session_state.producao_df = load_producao_data()
+    print(f"    - Produção: {len(st.session_state.producao_df)} registros")
 
     status_text.text('Carregando dados de Canudos...')
     progress_bar.progress(0.92)
     st.session_state.canudos_df = load_canudos_data()
+    print(f"    - Canudos: {len(st.session_state.canudos_df)} registros")
 
     status_text.text('Calculando custos financeiros...')
     progress_bar.progress(0.95)
@@ -978,6 +1131,7 @@ def refresh_data():
 
     progress_bar.progress(1.0)
     status_text.text('Dados carregados com sucesso!')
+    print(">>> Carregamento de dados concluído.")
     time.sleep(0.5)
     progress_bar.empty()
     status_text.empty()
@@ -1117,9 +1271,9 @@ st.sidebar.write("trabalhos:", len(st.session_state.get("trabalhos_df", [])))
 st.sidebar.write("dacen:", len(st.session_state.get("dacen_df", [])))
 st.sidebar.write("psi:", len(st.session_state.get("psi_df", [])))
 st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
-st.sidebar.write("gerais:", len(st.session_state.get("gerais_df", [])))
 st.sidebar.write("oee/teep:", len(st.session_state.get("oee_df", [])))
 st.sidebar.write("produção:", len(st.session_state.get("producao_df", [])))
+st.sidebar.write("canudos:", len(st.session_state.get("canudos_df", [])))
 
 if st.sidebar.button("Atualizar Dados"):
     with st.spinner('Atualizando dados...'):
@@ -1264,8 +1418,9 @@ with col_meio:
         st.session_state.nav_tab = tabs_labels[0]
 
     # Menu de navegação (estilo botões/abas)
+    print(f">>> [UI] Renderizando rádio de navegação. Aba atual: {st.session_state.get('nav_tab', 'desconhecida')}")
     selected_tab = st.radio(
-        "", 
+        "Navegação", 
         tabs_labels, 
         horizontal=True, 
         label_visibility="collapsed",
@@ -1275,7 +1430,160 @@ with col_meio:
 
     if selected_tab == "Relatórios":
         st.subheader("Relatórios de Produção")
-        st.info("Em desenvolvimento...")
+        df_rep = st.session_state.get("producao_df", pd.DataFrame()).copy()
+        
+        if not df_rep.empty:
+            st.markdown("#### Filtros de Relatório")
+            c1, c2 = st.columns(2)
+            
+            with c1:
+                original_maquinas = sorted(df_rep['maquina'].unique().tolist())
+                # Mapeamento para nomes limpos: "180" -> "180- CX-360G"
+                maq_map = {name.split('-')[0].strip() if '-' in name else name: name for name in original_maquinas}
+                clean_maquinas = list(maq_map.keys())
+                sel_clean = st.multiselect("Filtrar Máquina(s)", options=clean_maquinas, default=clean_maquinas, key="rep_maq_multi")
+                
+            with c2:
+                if not df_rep['data'].empty:
+                    min_date = df_rep['data'].min()
+                    max_date = df_rep['data'].max()
+                    yesterday = pd.Timestamp.today().date() - pd.Timedelta(days=1)
+                    default_val = (yesterday, yesterday)
+                    
+                    visual_min = min(min_date.date(), yesterday) if pd.notnull(min_date) else yesterday
+                    sel_dates = st.date_input("Período", value=default_val, min_value=visual_min, max_value=max_date, key="rep_date")
+                else:
+                    sel_dates = []
+
+            # Aplicação dos filtros
+            if sel_clean:
+                sel_originals = [maq_map[name] for name in sel_clean]
+                df_rep = df_rep[df_rep['maquina'].isin(sel_originals)]
+            else:
+                st.warning("Selecione ao menos uma máquina.")
+                st.stop()
+            
+            if isinstance(sel_dates, (list, tuple)) and len(sel_dates) == 2:
+                df_rep = df_rep[(df_rep['data'] >= pd.Timestamp(sel_dates[0])) & (df_rep['data'] <= pd.Timestamp(sel_dates[1]))]
+            elif isinstance(sel_dates, (list, tuple)) and len(sel_dates) == 1:
+                df_rep = df_rep[df_rep['data'] >= pd.Timestamp(sel_dates[0])]
+
+            if not df_rep.empty:
+                st.markdown("#### 📄 Gerador de Relatório PDF")
+                st.write("Selecione os elementos abaixo para compor seu relatório baseado nos filtros aplicados:")
+                
+                re_options = [
+                    "Resumo de Produção (Métricas)",
+                    "Tabela: Detalhamento por Máquina",
+                    "Gráfico: Peças por Hora (Produção)",
+                    "Gráfico: Distribuição de OEE (Buckets)",
+                    "Gráfico: Heatmap de OEE",
+                    "Gráfico: Produção Diária (Canudos)",
+                    "Gráfico: Peças por Hora (Canudos)",
+                    "Gráfico: Top 10 Custos (Fichas Técnica)",
+                    "Gráfico: Mix de Produtos (Tintas)"
+                ]
+                selected_reports = st.multiselect("Elementos do PDF:", options=re_options, default=["Resumo de Produção (Métricas)", "Tabela: Detalhamento por Máquina"], key="rep_sel_multi")
+                
+                print(f">>> [UI] Renderizando elementos de relatório. Selecionados: {selected_reports}")
+                if st.button("Gerar PDF"):
+                    print(">>> [UI] Botão 'Gerar PDF' clicado!")
+                    with st.spinner("Gerando relatório... Isso pode levar alguns segundos dependendo da quantidade de gráficos."):
+                        data_sources = {'df_rep': df_rep}
+                        
+                        # Preparar dados OEE
+                        df_oee_base = st.session_state.get("oee_df", pd.DataFrame()).copy()
+                        if not df_oee_base.empty:
+                            # Aplicar mesmos filtros de máquina e data
+                            sel_originals = [maq_map[name] for name in sel_clean]
+                            df_oee_filtered = df_oee_base[df_oee_base['maquina'].isin(sel_originals)]
+                            if isinstance(sel_dates, (list, tuple)) and len(sel_dates) == 2:
+                                df_oee_filtered = df_oee_filtered[(df_oee_filtered['data'] >= pd.Timestamp(sel_dates[0])) & (df_oee_filtered['data'] <= pd.Timestamp(sel_dates[1]))]
+                            data_sources['df_oee'] = df_oee_filtered
+
+                        # Preparar dados Canudos
+                        df_can_base = st.session_state.get("canudos_df", pd.DataFrame()).copy()
+                        if not df_can_base.empty:
+                            if isinstance(sel_dates, (list, tuple)) and len(sel_dates) == 2:
+                                df_can_filtered = df_can_base[(df_can_base['data'] >= pd.Timestamp(sel_dates[0])) & (df_can_base['data'] <= pd.Timestamp(sel_dates[1]))]
+                                data_sources['df_can'] = df_can_filtered
+
+                        # Preparar dados Fichas
+                        df_fichas = st.session_state.get("trabalhos_df", pd.DataFrame())
+                        data_sources['df_fichas'] = df_fichas
+
+                        # --- GERAR GRÁFICOS ---
+                        if "Gráfico: Peças por Hora (Produção)" in selected_reports:
+                            df_hora = df_rep.groupby('hora')['producao_total'].sum().reset_index()
+                            fig = px.bar(df_hora, x='hora', y='producao_total', title="Produção por Hora", color_discrete_sequence=['#00adef'])
+                            data_sources["Gráfico: Peças por Hora (Produção)"] = fig
+                        
+                        if "Gráfico: Distribuição de OEE (Buckets)" in selected_reports and 'df_oee' in data_sources:
+                            df_oee = data_sources['df_oee']
+                            if not df_oee.empty:
+                                def get_bucket(val):
+                                    if val < 0.5: return "Baixa (<50%)"
+                                    if val < 0.8: return "Normal (50-80%)"
+                                    return "Alta (>80%)"
+                                df_oee['Faixa'] = df_oee['oee'].apply(get_bucket)
+                                df_b = df_oee['Faixa'].value_counts().reset_index()
+                                df_b.columns = ['Faixa', 'Qtd']
+                                fig = px.pie(df_b, names='Faixa', values='Qtd', title="Distribuição de OEE", color_discrete_map={"Baixa (<50%)": "#1a335f", "Normal (50-80%)": "#4466b1", "Alta (>80%)": "#89c153"})
+                                data_sources["Gráfico: Distribuição de OEE (Buckets)"] = fig
+
+                        if "Gráfico: Heatmap de OEE" in selected_reports and 'df_oee' in data_sources:
+                            df_oee = data_sources['df_oee']
+                            if not df_oee.empty:
+                                df_heat = df_oee.groupby(['data', 'hora'])['oee'].mean().reset_index()
+                                df_heat['data_str'] = df_heat['data'].dt.strftime('%d/%m')
+                                df_pivot = df_heat.pivot(index='hora', columns='data_str', values='oee').fillna(0) * 100
+                                fig = px.imshow(df_pivot, labels=dict(x="", y="Hora", color="OEE %"), color_continuous_scale=['#0a1929', '#89c153'], title="Mapa de Calor: OEE por Hora/Dia")
+                                data_sources["Gráfico: Heatmap de OEE"] = fig
+
+                        if "Gráfico: Produção Diária (Canudos)" in selected_reports and 'df_can' in data_sources:
+                            df_can = data_sources['df_can']
+                            if not df_can.empty:
+                                df_g = df_can.groupby('data')[['pecas_boas', 'perdas']].sum().reset_index()
+                                df_m = df_g.melt(id_vars='data', value_vars=['pecas_boas', 'perdas'], var_name='Tipo', value_name='Qtd')
+                                fig = px.bar(df_m, x='data', y='Qtd', color='Tipo', barmode='group', title="Canudos: Boas vs Perdas Diárias", color_discrete_map={'pecas_boas': '#00adef', 'perdas': '#1a335f'})
+                                data_sources["Gráfico: Produção Diária (Canudos)"] = fig
+
+                        if "Gráfico: Peças por Hora (Canudos)" in selected_reports and 'df_can' in data_sources:
+                            df_can = data_sources['df_can']
+                            if not df_can.empty:
+                                df_h = df_can.groupby(['data', 'turno'])['pecas_boas'].sum().reset_index()
+                                df_h['pecas_por_hora'] = df_h['pecas_boas'] / 8
+                                df_avg = df_h.groupby('turno')['pecas_por_hora'].mean().reset_index()
+                                fig = px.bar(df_avg, x='turno', y='pecas_por_hora', title="Canudos: Peças por Hora (Média)", color='turno', color_discrete_map={'Turno A': '#00adef', 'Turno B': '#1a335f', 'Turno C': '#89c153'})
+                                data_sources["Gráfico: Peças por Hora (Canudos)"] = fig
+
+                        if "Gráfico: Top 10 Custos (Fichas Técnica)" in selected_reports:
+                            df_f = data_sources['df_fichas']
+                            if not df_f.empty:
+                                df_t10 = df_f.nlargest(10, 'custo_total_tinta_mil')
+                                fig = px.bar(df_t10, x='custo_total_tinta_mil', y='produto', orientation='h', title="Top 10 Custos (R$ / 1.000 un)", color_discrete_sequence=['#4466b1'])
+                                data_sources["Gráfico: Top 10 Custos (Fichas Técnica)"] = fig
+
+                        if "Gráfico: Mix de Produtos (Tintas)" in selected_reports:
+                            df_f = data_sources['df_fichas']
+                            if not df_f.empty:
+                                counts = df_f['produto'].value_counts().reset_index()
+                                counts.columns = ['produto', 'quantidade']
+                                fig = px.pie(counts, values='quantidade', names='produto', title="Mix de Produtos", color_discrete_sequence=['#1a335f', '#00adef'])
+                                data_sources["Gráfico: Mix de Produtos (Tintas)"] = fig
+
+                        # --- GERAR PDF ---
+                        pdf_bytes = create_pdf_report(selected_reports, data_sources)
+                        st.download_button(
+                            label="📥 Baixar Relatório PDF",
+                            data=bytes(pdf_bytes),
+                            file_name=f"Relatorio_Producao_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                            mime="application/pdf"
+                        )
+            else:
+                st.warning("Nenhum dado encontrado para o período/máquinas selecionados.")
+        else:
+            st.info("Carregue os dados de produção para visualizar os relatórios.")
 
     if selected_tab == "Configurações":
         st.markdown("### Custos de Tintas (USD)")
@@ -1694,6 +2002,49 @@ with col_meio:
              )
              st.plotly_chart(fig_can, use_container_width=True)
              
+             st.write("---")
+             
+             # Novo Gráfico: Peças por Hora, por Turno (Baseado em 8h de turno)
+             st.write("#### Peças por Hora")
+             if not df_can.empty:
+                 # Agrupar por data e turno para somar a produção do período de 8h
+                 df_hourly = df_can.groupby(['data', 'turno'])['pecas_boas'].sum().reset_index()
+                 # Dividir por 8 para ter a média horária daquele shift
+                 df_hourly['pecas_por_hora'] = df_hourly['pecas_boas'] / 8
+                 
+                 # Média das médias horárias por turno no período selecionado
+                 df_avg_hourly = df_hourly.groupby('turno')['pecas_por_hora'].mean().reset_index()
+                 
+                 # Mapeamento de Cores (Paleta do App)
+                 palette_map = {
+                     'Turno A': '#00adef', 'Turno B': '#1a335f', 'Turno C': '#89c153',
+                     'A': '#00adef', 'B': '#1a335f', 'C': '#89c153',
+                     '1': '#00adef', '2': '#1a335f', '3': '#89c153'
+                 }
+                 
+                 fig_hourly = px.bar(df_avg_hourly, x='turno', y='pecas_por_hora',
+                                    color='turno',
+                                    text='pecas_por_hora',
+                                    labels={'pecas_por_hora': 'Peças/Hora', 'turno': 'Turno'},
+                                    color_discrete_map=palette_map)
+                 
+                 # Adicionar linha de mediana
+                 median_val = df_avg_hourly['pecas_por_hora'].median()
+                 fig_hourly.add_hline(y=median_val, line_dash="dash", line_color="#89c153", 
+                                    annotation_text=f"Mediana: {median_val:,.1f}", 
+                                    annotation_position="top right",
+                                    annotation_font_color="#89c153")
+                 
+                 fig_hourly.update_traces(texttemplate='%{text:,.1f}', textposition='outside')
+                 fig_hourly.update_layout(
+                     paper_bgcolor='rgba(0,0,0,0)',
+                     plot_bgcolor='rgba(0,0,0,0)',
+                     height=400,
+                     margin=dict(t=30, b=50, l=0, r=0),
+                     showlegend=False
+                 )
+                 st.plotly_chart(fig_hourly, use_container_width=True)
+
              st.write("---")
              st.write("#### Análise por Turno")
 
@@ -2215,6 +2566,7 @@ footer_html = f"""
 """
 
 st.markdown(footer_css + footer_html, unsafe_allow_html=True)
+print(">>> Script finalizado e pronto para exibir na tela.")
 
 
 
