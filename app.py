@@ -68,7 +68,7 @@ class PDFReport(FPDF):
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Página {self.page_no()} | Gerado em {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 0, 'C')
+        self.cell(0, 10, f'Página {self.page_no()} | Gerado em {datetime.datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 0, 'C')
 
 def create_pdf_report(selected_elements, data_sources):
     print(f">>> [PDF] Iniciando criação do relatório com {len(selected_elements)} elementos")
@@ -105,7 +105,7 @@ def create_pdf_report(selected_elements, data_sources):
                     pdf.set_font('Arial', 'B', 12)
                     pdf.cell(0, 10, title, 0, 1)
                     
-                    img_path = f"temp_chart_{datetime.now().timestamp()}.png"
+                    img_path = f"temp_chart_{datetime.datetime.now().timestamp()}.png"
                     with open(img_path, "wb") as f:
                         f.write(img_bytes)
                     pdf.image(img_path, x=10, y=None, w=190)
@@ -1577,7 +1577,7 @@ with col_meio:
                         st.download_button(
                             label="📥 Baixar Relatório PDF",
                             data=bytes(pdf_bytes),
-                            file_name=f"Relatorio_Producao_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                            file_name=f"Relatorio_Producao_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                             mime="application/pdf"
                         )
             else:
