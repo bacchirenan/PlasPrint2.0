@@ -397,8 +397,8 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 pdf.set_xy(x, y + 10)
                 pdf.cell(w, 10, str(value), 0, 0, 'C')
 
-            draw_mini_card(5, 52, 28, 20, "TEEP", f"{avg_teep:.1f}", "#00adef")
-            draw_mini_card(37, 52, 28, 20, "Prod. Total", f"{total_pecas:,.0f}".replace(",", "."), "#0ea38e")
+            draw_mini_card(5, 52, 28, 20, "Prod. Total", f"{total_pecas:,.0f}".replace(",", "."), "#0ea38e")
+            draw_mini_card(37, 52, 28, 20, "TEEP", f"{avg_teep:.1f}", "#00adef")
             
             # Peças Boas (Barra Horizontal)
             def draw_pill_metric(x, y, w, h, label, value, color_hex):
@@ -446,16 +446,16 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             pdf.set_font(pdf.custom_font, 'B', 8)
             
             # Linha 1
-            pdf.set_xy(6, 189) # Um pouco mais pra baixo do topo
-            pdf.cell(34, 5, "Média Horas", 0, 0, 'C')
+            pdf.set_xy(6, 191) 
+            pdf.cell(34, 4, "Média Horas", 0, 0, 'C')
             
             # Linha 2
-            pdf.set_xy(6, 195) 
-            pdf.cell(34, 5, "Produzindo", 0, 0, 'C')
+            pdf.set_xy(6, 196) 
+            pdf.cell(34, 4, "Produzindo", 0, 0, 'C')
             
             # Texto Valor
             pdf.set_text_color(0, 173, 239) # #00adef
-            pdf.set_font(pdf.custom_font, 'B', 14)
+            pdf.set_font(pdf.custom_font, 'B', 12)
             # Posicao X = 5 (margem) + 1 (border gap) + 34 (label width) + gap = ~40
             pdf.set_xy(40, 186)
             val_fmt = f"{media_horas_prod:.1f}".replace('.', ',')
@@ -483,26 +483,34 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             # 2. Gráfico OEE Diário
             if df_oee is not None and not df_oee.empty:
                 # Agrupamento diário usando Média
-                df_grp = df_oee.groupby('data')
-                df_daily_oee = pd.DataFrame({
+                temp_df = df_oee.copy()
+                # 1. Agrupar por data real primeiro (média do dia específico)
+                temp_df['data_date'] = temp_df['data'].dt.date
+                df_grp = temp_df.groupby('data_date')
+                
+                df_daily_inter = pd.DataFrame({
                     'oee': df_grp['oee'].mean(),
                     'teep': df_grp['teep'].mean()
                 }).reset_index()
-                df_daily_oee['data_str'] = df_daily_oee['data'].dt.strftime('%d')
+                
+                # 2. Criar string do dia e agrupar por ela (Média de '02' de Jan e '02' de Fev)
+                df_daily_inter['data_str'] = pd.to_datetime(df_daily_inter['data_date']).dt.strftime('%d')
+                df_daily_oee = df_daily_inter.groupby('data_str')[['oee', 'teep']].mean().reset_index()
                 
                 avg_oee_val = df_oee['oee'].mean()
                 
                 fig = px.bar(df_daily_oee, x='data_str', y='oee', title="OEE Diário", color_discrete_sequence=['#00adef'], text_auto='.0%')
                 fig.add_hline(y=avg_oee_val, line_dash="dash", line_color="#f87171", annotation_text=f"{avg_oee_val*100:.0f}%", annotation_font_color="#f87171")
-                fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=35, b=25, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
+                fig.update_layout(yaxis_visible=False, xaxis_title=None, xaxis=dict(tickmode='linear', dtick=1), margin=dict(t=35, b=25, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
                 
                 img_bytes = pio.to_image(fig, format="png", width=900, height=250, scale=2)
                 img_path = f"temp_oee_diag_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
                 pdf.set_draw_color(230, 235, 245)
-                pdf.rounded_rect(70, 17, 222, 62, 2, 'FD')
-                pdf.image(img_path, x=70, y=17, w=222)
+                # H = 59.33 para alinhar base final em 205mm
+                pdf.rounded_rect(70, 19, 222, 59.33, 2, 'FD')
+                pdf.image(img_path, x=70, y=19, w=222)
                 os.remove(img_path)
 
             # Gráfico Produção Diária
@@ -512,7 +520,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             
             fig = px.bar(df_melt, x='data_str', y='Qtd', color='Tipo', barmode='group', title="Produção Diária", 
                          color_discrete_map={'pecas_boas': '#0ea38e', 'rejeito': '#f87171'})
-            fig.update_layout(yaxis_visible=False, xaxis_title=None, showlegend=True, 
+            fig.update_layout(yaxis_visible=False, xaxis_title=None, xaxis=dict(tickmode='linear', dtick=1), showlegend=True, 
                               legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5),
                               margin=dict(t=35, b=45, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
             
@@ -521,15 +529,24 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             with open(img_path, "wb") as f: f.write(img_bytes)
             pdf.set_fill_color(248, 250, 253)
             pdf.set_draw_color(230, 235, 245)
-            pdf.rounded_rect(70, 82, 222, 62, 2, 'FD')
-            pdf.image(img_path, x=70, y=82, w=222)
+            # Y=82.33 (19 + 59.33 + 4) | H=59.33
+            pdf.rounded_rect(70, 82.33, 222, 59.33, 2, 'FD')
+            pdf.image(img_path, x=70, y=82.33, w=222)
             os.remove(img_path)
 
-            # Row inferior - Mensais
+            # Row inferior - Mensais (Y=145)
             # OEE Mensal, TEEP Mensal, Produção Mensal
             # Vamos pegar o mês atual dos dados filtrados
+            mesi_map = {
+                'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março', 'April': 'Abril',
+                'May': 'Maio', 'June': 'Junho', 'July': 'Julho', 'August': 'Agosto',
+                'September': 'Setembro', 'October': 'Outubro', 'November': 'Novembro', 'December': 'Dezembro'
+            }
+
             if df_oee is not None and not df_oee.empty:
                 df_oee['mes'] = df_oee['data'].dt.strftime('%B')
+                df_oee['mes'] = df_oee['mes'].map(mesi_map).fillna(df_oee['mes'])
+                
                 df_grp = df_oee.groupby('mes')
                 df_mes_oee = pd.DataFrame({
                     'oee': df_grp['oee'].mean()
@@ -537,42 +554,45 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 
                 fig = px.bar(df_mes_oee, x='mes', y='oee', title="OEE Mensal", color_discrete_sequence=['#1a335f'], text_auto='.0%')
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=30, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
-                img_bytes = pio.to_image(fig, format="png", width=300, height=200, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
                 img_path = f"temp_oee_mes_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
                 pdf.set_draw_color(230, 235, 245)
-                pdf.rounded_rect(70, 150, 70, 55, 2, 'FD')
-                pdf.image(img_path, x=70, y=150, w=70)
+                # Y=145.66 (82.33 + 59.33 + 4) | H=59.33
+                pdf.rounded_rect(70, 145.66, 70, 59.33, 2, 'FD')
+                pdf.image(img_path, x=70, y=145.66, w=70)
                 os.remove(img_path)
 
-                df_oee['mes'] = df_oee['data'].dt.strftime('%B')
                 # TEEP Mensal: Média simples por mês
                 df_mes_teep = df_oee.groupby('mes')['teep'].mean().reset_index()
                 
                 fig = px.bar(df_mes_teep, x='mes', y='teep', title="TEEP Mensal", color_discrete_sequence=['#00adef'], text_auto='.0%')
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=30, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
-                img_bytes = pio.to_image(fig, format="png", width=300, height=200, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
                 img_path = f"temp_teep_mes_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
                 pdf.set_draw_color(230, 235, 245)
-                pdf.rounded_rect(145, 150, 71, 55, 2, 'FD')
-                pdf.image(img_path, x=145, y=150, w=71)
+                # Gap 4mm: 70+70+4 = 144 | Y=145.66 | H=59.33
+                pdf.rounded_rect(144, 145.66, 70, 59.33, 2, 'FD')
+                pdf.image(img_path, x=144, y=145.66, w=70)
                 os.remove(img_path)
 
             df_rep['mes'] = df_rep['data'].dt.strftime('%B')
+            df_rep['mes'] = df_rep['mes'].map(mesi_map).fillna(df_rep['mes'])
             df_mes_prod = df_rep.groupby('mes')['pecas_boas'].sum().reset_index()
             
             fig = px.bar(df_mes_prod, x='mes', y='pecas_boas', title="Produção Mensal", color_discrete_sequence=['#0ea38e'], text_auto=True)
             fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=30, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
-            img_bytes = pio.to_image(fig, format="png", width=300, height=200, scale=2)
+            img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
             img_path = f"temp_prod_mes_{datetime.datetime.now().timestamp()}.png"
             with open(img_path, "wb") as f: f.write(img_bytes)
             pdf.set_fill_color(248, 250, 253)
             pdf.set_draw_color(230, 235, 245)
-            pdf.rounded_rect(221, 150, 71, 55, 2, 'FD')
-            pdf.image(img_path, x=221, y=150, w=71)
+            # Gap 4mm: 144+70+4 = 218 | Y=145.66 | H=59.33
+            pdf.rounded_rect(218, 145.66, 70, 59.33, 2, 'FD')
+            pdf.image(img_path, x=218, y=145.66, w=70)
             os.remove(img_path)
             
             # Resetar Auto Page Break para elementos seguintes
