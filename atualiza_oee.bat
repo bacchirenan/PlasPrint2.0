@@ -1,18 +1,18 @@
 @echo off
-REM ===== CAMINHO DO REPO =====
 cd /d "D:\IMPRESSAO\SOFTWARES\PlasPrint IA v2.0"
 
-REM ===== ATUALIZAR DO GITHUB =====
 git pull origin main
 
-REM ===== ADICIONAR AS 4 PLANILHAS (NOMES EXATOS DO REPO) =====
-git add "oee teep.xlsx" "producao.xlsx" "Canudos.xlsx" "rejeito.xlsx"
+git add *.xlsx
 
-REM ===== SEMPRE CRIAR COMMIT, MESMO SEM MUDANÇA =====
-git commit --allow-empty -m "Atualização automática OEE, Canudos, Producao e Rejeito (%date% %time%)"
+git diff --cached --quiet
+if %errorlevel%==0 (
+    echo Nenhuma alteracao detectada.
+) else (
+    git commit -m "Atualização automática (%date% %time%)"
+    git push origin main
+)
 
-REM ===== ENVIAR PARA O GITHUB =====
-git push origin main
-
-REM ===== VER LOG =====
 pause
+exit
+
