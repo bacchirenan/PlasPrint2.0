@@ -555,10 +555,16 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 df_daily_inter['data_str'] = pd.to_datetime(df_daily_inter['data_date']).dt.strftime('%d')
                 df_daily_oee = df_daily_inter.groupby('data_str')[['oee', 'teep']].mean().reset_index()
                 
-                avg_oee_val = df_oee['oee'].mean()
+                median_oee_val = df_daily_oee['oee'].median()
                 
                 fig = px.bar(df_daily_oee, x='data_str', y='oee', title="OEE Diário", color_discrete_sequence=['#00adef'], text_auto='.0%')
-                fig.add_hline(y=avg_oee_val, line_dash="dash", line_color="#f87171", annotation_text=f"{avg_oee_val*100:.0f}%", annotation_font_color="#f87171")
+                fig.add_hline(y=median_oee_val, line_dash="dash", line_color="#f87171")
+                # Alinhado ao topo (ao lado do título)
+                fig.add_annotation(xref="paper", yref="paper", x=1, y=1.15, 
+                                   text=f"{median_oee_val:.0%}", 
+                                   showarrow=False, font=dict(size=14, color="#f87171", family="Arial Black"), 
+                                   xanchor='right', yanchor='bottom')
+                
                 fig.update_traces(textposition='outside', textangle=-90, textfont=dict(size=12), cliponaxis=False)
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, xaxis=dict(tickmode='linear', dtick=1), margin=dict(t=60, b=25, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
                                   uniformtext_minsize=12, uniformtext_mode='show',
@@ -575,11 +581,22 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 os.remove(img_path)
 
             # Gráfico Produção Diária
-            df_daily_prod = df_rep.groupby('data')['pecas_boas'].sum().reset_index()
+            df_daily_prod = df_rep.copy()
             df_daily_prod['data_str'] = df_daily_prod['data'].dt.strftime('%d')
+            df_daily_prod = df_daily_prod.groupby('data_str')['pecas_boas'].sum().reset_index()
+            
+            median_val = df_daily_prod['pecas_boas'].median()
             
             fig = px.bar(df_daily_prod, x='data_str', y='pecas_boas', title="Produção Diária", 
                          color_discrete_sequence=['#0ea38e'], text_auto='.2s')
+            fig.add_hline(y=median_val, line_dash="dash", line_color="#f87171")
+            
+            # Alinhado ao topo (ao lado do título)
+            fig.add_annotation(xref="paper", yref="paper", x=1, y=1.30, 
+                               text=f"{median_val:,.0f}".replace(',', '.'), 
+                               showarrow=False, font=dict(size=14, color="#f87171", family="Arial Black"), 
+                               xanchor='right', yanchor='bottom')
+            
             fig.update_traces(textposition='outside', textangle=-90, textfont=dict(size=12), cliponaxis=False)
             fig.update_layout(yaxis_visible=False, xaxis_title=None, xaxis=dict(tickmode='linear', dtick=1), showlegend=False, 
                               bargap=0.3,      # Espaço entre os dias
@@ -3288,21 +3305,31 @@ with col_meio:
                 
                 # 1. Evolução Diária (Barras)
                 st.write("#### Produção Diária (Peças Boas)")
-                df_daily_prod = df_prod.groupby('data')['pecas_boas'].sum().reset_index()
-                # Formatar data para DD/MM
-                df_daily_prod['data_label'] = df_daily_prod['data'].dt.strftime('%d/%m')
+                df_daily_prod = df_prod.copy()
+                df_daily_prod['data_label'] = df_prod['data'].dt.strftime('%d/%m')
+                df_daily_prod = df_daily_prod.groupby('data_label', sort=False)['pecas_boas'].sum().reset_index()
                 
                 fig_daily_prod = px.bar(df_daily_prod, x='data_label', y='pecas_boas',
                                          labels={'pecas_boas': 'Peças Boas', 'data_label': 'Data'},
                                          text='pecas_boas',
                                          color_discrete_sequence=['#00adef']) # Cyan
-                fig_daily_prod.update_traces(texttemplate='%{text:,.0f}', textposition='inside', insidetextanchor='end', textfont_color='white')
-                # Média Produção Diária
+                fig_daily_prod.update_traces(texttemplate='%{text:,.0f}', textposition='outside', textfont_color='white')
+                
+                # Média e Mediana Produção Diária
                 mean_daily_prod = df_daily_prod['pecas_boas'].mean()
+                median_daily_prod = df_daily_prod['pecas_boas'].median()
+                
+                # Linha da Média (Branca)
                 fig_daily_prod.add_hline(y=mean_daily_prod, line_dash="dash", line_color="#FFFFFF",
                                         annotation_text=f"Média: {mean_daily_prod:,.0f}",
-                                        annotation_position="top right",
+                                        annotation_position="top left",
                                         annotation_font_color="#FFFFFF")
+                
+                # Linha da Mediana (Vermelha) - #f87171 é um vermelho mais suave que combina com o layout
+                fig_daily_prod.add_hline(y=median_daily_prod, line_dash="dash", line_color="#f87171",
+                                        annotation_text=f"Mediana: {median_daily_prod:,.0f}",
+                                        annotation_position="top right",
+                                        annotation_font_color="#f87171")
 
                 fig_daily_prod.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
