@@ -29,6 +29,50 @@ def init_db():
     try:
         conn = sqlite3.connect('fichas_tecnicas.db')
         cursor = conn.cursor()
+        
+        # Tabela de Fichas Técnicas
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS fichas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referencia TEXT NOT NULL,
+                produto TEXT NOT NULL,
+                decoracao TEXT,
+                data_cadastro TEXT,
+                tempo_s REAL DEFAULT 0.0,
+                cyan REAL DEFAULT 0.0,
+                magenta REAL DEFAULT 0.0,
+                yellow REAL DEFAULT 0.0,
+                black REAL DEFAULT 0.0,
+                white REAL DEFAULT 0.0,
+                varnish REAL DEFAULT 0.0,
+                largura REAL DEFAULT 0.0,
+                altura REAL DEFAULT 0.0,
+                diametro REAL DEFAULT 0.0,
+                print_edge REAL DEFAULT 0.0,
+                powergrade REAL DEFAULT 0.0,
+                finish_time REAL DEFAULT 0.0,
+                intervalo REAL DEFAULT 0.0,
+                uv_lamp REAL DEFAULT 0.0,
+                obs TEXT,
+                image_path TEXT,
+                config_cyan TEXT DEFAULT "",
+                config_magenta TEXT DEFAULT "",
+                config_yellow TEXT DEFAULT "",
+                config_black TEXT DEFAULT "",
+                config_white TEXT DEFAULT "",
+                config_varnish TEXT DEFAULT ""
+            )
+        ''')
+
+        # Tabela de Produtos
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS produtos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                tempo_padrao REAL DEFAULT 0.0
+            )
+        ''')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS custos_tintas (
                 cor TEXT PRIMARY KEY,
@@ -1802,6 +1846,7 @@ def process_chat_request(prompt, dfs, image=None):
         - **Moeda Americana**: Use o prefixo **$** APENAS se encontrar valores originalmente em dólar.
         - Os preços base por litro são: {st.session_state.precos_tintas} (Valores em R$/L).
         - Considere a margem de {st.session_state.get('margem_lucro', 40)}% sobre o custo unitário.
+        - **IMPORTANTE**: O sistema já inclui um **Imposto de Importação de {get_config('imposto', 0.0):.2f}%** nos cálculos de custo das fichas técnicas. Se questionado, confirme que este imposto já está contemplado nos valores apresentados.
 
         TRATAMENTO DE LINKS E MÍDIA:
         - **ESTRUTURA OBRIGATÓRIA**: Para links de imagem, use exatamente: Link de Imagem: [URL].
@@ -2325,7 +2370,7 @@ with col_meio:
             st.markdown("---")
             st.markdown("#### Impostos e Taxas")
             current_imposto = get_config('imposto', 0.0)
-            imposto_val = st.number_input("Imposto (%)", value=float(current_imposto), step=1.0, format="%.2f", key="config_imposto")
+            imposto_val = st.number_input("Imposto de Importação (%)", value=float(current_imposto), step=1.0, format="%.2f", key="config_imposto")
             
             st.markdown("---")
             if st.form_submit_button("💾 Salvar Configurações", use_container_width=True):
@@ -3006,7 +3051,7 @@ with col_meio:
             # Mostrar mensagem de imposto se configurado
             current_imposto = get_config('imposto', 0.0)
             if current_imposto > 0:
-                st.markdown(f"<p style='font-size: 0.8rem; color: #888; margin-top: -10px;'>* Imposto de {current_imposto:.2f}% já incluído.</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='font-size: 0.8rem; color: #888; margin-top: -10px;'>*Imposto de importação de {current_imposto:.2f}% já incluído.</p>", unsafe_allow_html=True)
             
             st.write("#### Top 10: Produtos com Maior Custo (1.000 un.)")
             df_top10 = df_fichas.nlargest(10, 'custo_total_tinta_mil')[['referencia', 'produto', 'decoracao', 'custo_total_tinta_mil']].copy()
