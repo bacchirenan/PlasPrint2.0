@@ -616,7 +616,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 }).reset_index()
                 
                 fig = px.bar(df_mes_oee, x='mes', y='oee', title="OEE Mensal", color_discrete_sequence=['#1a335f'], text_auto='.0%')
-                fig.update_traces(textposition='outside', textangle=-90)
+                fig.update_traces(textposition='inside', textangle=0, textfont_color='white')
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=40, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
                 img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
                 img_path = f"temp_oee_mes_{datetime.datetime.now().timestamp()}.png"
@@ -632,7 +632,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 df_mes_teep = df_oee.groupby('mes')['teep'].mean().reset_index()
                 
                 fig = px.bar(df_mes_teep, x='mes', y='teep', title="TEEP Mensal", color_discrete_sequence=['#00adef'], text_auto='.0%')
-                fig.update_traces(textposition='outside', textangle=-90)
+                fig.update_traces(textposition='inside', textangle=0, textfont_color='white')
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=40, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
                 img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
                 img_path = f"temp_teep_mes_{datetime.datetime.now().timestamp()}.png"
@@ -649,7 +649,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             df_mes_prod = df_rep.groupby('mes')['pecas_boas'].sum().reset_index()
             
             fig = px.bar(df_mes_prod, x='mes', y='pecas_boas', title="Produção Mensal", color_discrete_sequence=['#0ea38e'], text_auto='.2s')
-            fig.update_traces(textposition='outside', textangle=-90)
+            fig.update_traces(textposition='inside', textangle=0, textfont_color='white')
             fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=40, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
             img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
             img_path = f"temp_prod_mes_{datetime.datetime.now().timestamp()}.png"
