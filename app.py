@@ -262,8 +262,8 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
         fig.update_xaxes(showgrid=True, gridcolor='#eeeeee', linecolor='#333333')
         fig.update_yaxes(showgrid=True, gridcolor='#eeeeee', linecolor='#333333')
         
-        # Exportar usando pio.to_image
-        img_bytes = pio.to_image(fig, format="png", width=1200, height=675, scale=2)
+        # Exportar usando pio.to_image - Reduzido escala para 1.2 para velocidade
+        img_bytes = pio.to_image(fig, format="png", width=1000, height=560, scale=1.2)
         return img_bytes
     
     # Função auxiliar para adicionar gráfico ao PDF com timeout
@@ -580,7 +580,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                                   uniformtext_minsize=12, uniformtext_mode='show',
                                   font=dict(size=10, color='#1a335f'))
                 
-                img_bytes = pio.to_image(fig, format="png", width=900, height=250, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=900, height=250, scale=1.2)
                 img_path = f"temp_oee_diag_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
@@ -614,7 +614,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                               margin=dict(t=80, b=50, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
                               font=dict(size=10, color='#1a335f'))
             
-            img_bytes = pio.to_image(fig, format="png", width=900, height=250, scale=2)
+            img_bytes = pio.to_image(fig, format="png", width=900, height=250, scale=1.2)
             img_path = f"temp_prod_diag_{datetime.datetime.now().timestamp()}.png"
             with open(img_path, "wb") as f: f.write(img_bytes)
             pdf.set_fill_color(248, 250, 253)
@@ -645,7 +645,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 fig = px.bar(df_mes_oee, x='mes', y='oee', title="OEE Mensal", color_discrete_sequence=['#1a335f'], text_auto='.0%')
                 fig.update_traces(textposition='inside', textangle=0, textfont_color='white')
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=40, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
-                img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=1.2)
                 img_path = f"temp_oee_mes_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
@@ -661,7 +661,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 fig = px.bar(df_mes_teep, x='mes', y='teep', title="TEEP Mensal", color_discrete_sequence=['#00adef'], text_auto='.0%')
                 fig.update_traces(textposition='inside', textangle=0, textfont_color='white')
                 fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=40, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
-                img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=1.2)
                 img_path = f"temp_teep_mes_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
@@ -678,7 +678,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             fig = px.bar(df_mes_prod, x='mes', y='pecas_boas', title="Produção Mensal", color_discrete_sequence=['#0ea38e'], text_auto='.2s')
             fig.update_traces(textposition='inside', textangle=0, textfont_color='white')
             fig.update_layout(yaxis_visible=False, xaxis_title=None, margin=dict(t=40, b=20, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(size=10, color='#1a335f'))
-            img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=2)
+            img_bytes = pio.to_image(fig, format="png", width=300, height=250, scale=1.2)
             img_path = f"temp_prod_mes_{datetime.datetime.now().timestamp()}.png"
             with open(img_path, "wb") as f: f.write(img_bytes)
             pdf.set_fill_color(248, 250, 253)
@@ -734,7 +734,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                                   paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
                                   font=dict(size=10, color='#1a335f'))
                 
-                img_bytes = pio.to_image(fig, format="png", width=450, height=300, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=450, height=300, scale=1.2)
                 img_path = f"temp_oee_maq_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
@@ -774,7 +774,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                                   paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
                                   font=dict(size=10, color='#1a335f'))
                 
-                img_bytes = pio.to_image(fig, format="png", width=450, height=300, scale=2)
+                img_bytes = pio.to_image(fig, format="png", width=450, height=300, scale=1.2)
                 img_path = f"temp_hr_maq_{datetime.datetime.now().timestamp()}.png"
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 pdf.set_fill_color(248, 250, 253)
@@ -801,6 +801,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                 # Checar tanto na versão limpa quanto na original
                 mask_remove = (
                     df_oee_op['operador_upper'].str.contains("SEM OPERADOR", na=False) |
+                    df_oee_op['operador_upper'].str.contains("FABIO INTRA IMAG", na=False) |
                     df_oee_op['operador_upper'].str.startswith("0", na=False) |
                     df_oee_op['operador'].astype(str).str.contains("SEM OPERADOR", case=False, na=False) |
                     (df_oee_op['operador_upper'] == "0") |
@@ -824,7 +825,8 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
                                       paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
                                       font=dict(size=10, color='#1a335f'))
                     
-                    img_bytes = pio.to_image(fig, format="png", width=900, height=300, scale=2)
+                    # Reduzido escala para 1.5 para maior velocidade de geração
+                    img_bytes = pio.to_image(fig, format="png", width=900, height=300, scale=1.5)
                     img_path = f"temp_oee_op_{datetime.datetime.now().timestamp()}.png"
                     with open(img_path, "wb") as f: f.write(img_bytes)
                     pdf.set_fill_color(248, 250, 253)
