@@ -27,6 +27,7 @@ st.set_page_config(page_title="PlasPrint IA", page_icon="favicon.ico", layout="w
 
 def init_db():
     try:
+        # Banco de Dados de Produção/Fichas (Sincronizado via BAT)
         conn = sqlite3.connect('fichas_tecnicas.db')
         cursor = conn.cursor()
         
@@ -73,7 +74,16 @@ def init_db():
             )
         ''')
 
-        cursor.execute('''
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fichas_referencia ON fichas(referencia)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fichas_produto ON fichas(produto)")
+        conn.commit()
+        conn.close()
+
+        # Banco de Dados de Configurações (Persistente Local - NÃO SOBREPOSTO PELO BAT)
+        conn_c = sqlite3.connect('configuracoes.db')
+        cursor_c = conn_c.cursor()
+
+        cursor_c.execute('''
             CREATE TABLE IF NOT EXISTS custos_tintas (
                 cor TEXT PRIMARY KEY,
                 preco_litro REAL,
@@ -81,8 +91,8 @@ def init_db():
                 data_atualizacao TEXT
             )
         ''')
-        # Tabela para configurações gerais (ex: Imposto)
-        cursor.execute('''
+        
+        cursor_c.execute('''
             CREATE TABLE IF NOT EXISTS config_geral (
                 chave TEXT PRIMARY KEY,
                 valor REAL
@@ -90,26 +100,23 @@ def init_db():
         ''')
         
         # Inserir configurações padrão se não existirem
-        cursor.execute("SELECT count(*) FROM config_geral WHERE chave = 'imposto'")
-        if cursor.fetchone()[0] == 0:
-            cursor.execute("INSERT INTO config_geral (chave, valor) VALUES ('imposto', 0.0)")
+        cursor_c.execute("SELECT count(*) FROM config_geral WHERE chave = 'imposto'")
+        if cursor_c.fetchone()[0] == 0:
+            cursor_c.execute("INSERT INTO config_geral (chave, valor) VALUES ('imposto', 0.0)")
 
         # Populate initial data if empty
-        cursor.execute("SELECT count(*) FROM custos_tintas")
-        if cursor.fetchone()[0] == 0:
+        cursor_c.execute("SELECT count(*) FROM custos_tintas")
+        if cursor_c.fetchone()[0] == 0:
             initial_data = [
                 ('cyan', 250.0, 45.0), ('magenta', 250.0, 45.0), ('yellow', 250.0, 45.0),
                 ('black', 250.0, 45.0), ('white', 300.0, 55.0), ('varnish', 180.0, 35.0)
             ]
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             for cor, brl, usd in initial_data:
-                cursor.execute("INSERT INTO custos_tintas VALUES (?, ?, ?, ?)", (cor, brl, usd, now))
-            conn.commit()
+                cursor_c.execute("INSERT INTO custos_tintas VALUES (?, ?, ?, ?)", (cor, brl, usd, now))
         
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fichas_referencia ON fichas(referencia)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fichas_produto ON fichas(produto)")
-        conn.commit()
-        conn.close()
+        conn_c.commit()
+        conn_c.close()
     except Exception as e:
         st.error(f"Erro ao inicializar banco de dados: {e}")
 
@@ -118,6 +125,7 @@ init_db()
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
+        self.skip_footer = False
         # Registrar fonte customizada
         if os.path.exists("font.ttf"):
             try:
@@ -151,12 +159,12 @@ class PDFReport(FPDF):
             self.ln(25)
 
     def footer(self):
-        if self.page_no() > 1:  # Não mostrar footer na capa
+        if self.page_no() > 1 and not self.skip_footer:  # Não mostrar footer na capa ou se skip_footer for True
             self.set_y(-20)
             # Linha decorativa sutil
             self.set_draw_color(230, 230, 230)
             self.set_line_width(0.3)
-            self.line(10, self.get_y(), 200, self.get_y())
+            self.line(10, self.get_y(), self.w - 10, self.get_y())
             
             self.set_y(-15)
             self.set_font(self.custom_font, 'I', 8)
@@ -302,6 +310,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             print(f">>> [PDF] ERRO CRÍTICO no processamento: {e}")
 
     if "Resumo de Produção (Métricas)" in selected_elements:
+        pdf.skip_footer = False
         pdf.add_page()
         df = data_sources.get('df_rep')
         if df is not None and not df.empty:
@@ -358,6 +367,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             pdf.ln(50)
 
     if "Relatório Geral (Layout Dashboard)" in selected_elements:
+        pdf.skip_footer = True  # Ativar remoção do rodapé para o dashboard
         pdf.add_page(orientation='L')
         pdf.set_auto_page_break(False)
         
@@ -678,6 +688,152 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
             pdf.image(img_path, x=218, y=145.66, w=70)
             os.remove(img_path)
             
+            # --- SEGUNDA PÁGINA DO DASHBOARD ---
+            pdf.add_page(orientation='L')
+            pdf.set_auto_page_break(False)
+            
+            # Fundo geral Branco
+            pdf.set_fill_color(255, 255, 255)
+            pdf.rect(0, 0, 297, 210, 'F')
+            
+            # --- BARRA SUPERIOR (HEADER) ---
+            pdf.set_fill_color(248, 250, 253)
+            pdf.set_draw_color(230, 235, 245)
+            # Full width bar (margem de 5mm)
+            pdf.rounded_rect(5, 5, 287, 10, 2, 'FD')
+            
+            # Formatar máquinas
+            maqs = filters.get('maquinas', [])
+            maqs_text = ", ".join(maqs[:10]) + (f" (+{len(maqs)-10})" if len(maqs) > 10 else "")
+            info_text = f"Período: {filters.get('periodo', 'N/A')}  |  Máquinas: {maqs_text}"
+            
+            pdf.set_font(pdf.custom_font, 'B', 10)
+            pdf.set_text_color(26, 51, 95)
+            pdf.set_xy(7, 6)
+            pdf.cell(50, 8, "PlasPrint", 0, 0, 'L')
+            
+            pdf.set_font(pdf.custom_font, 'B', 8)
+            pdf.cell(233, 8, info_text, 0, 0, 'R')
+            
+            # Ajustar XY para o conteúdo seguinte
+            pdf.set_xy(5, 19)
+            
+            # 1. Gráfico OEE por Máquina
+            if df_oee is not None and not df_oee.empty:
+                df_oee_maq = df_oee.groupby('maquina')['oee'].mean().reset_index()
+                # Ordenação preferida
+                df_oee_maq['maquina_clean'] = df_oee_maq['maquina'].str.split('-').str[0].str.strip()
+                preferred_order = ["28", "29", "180", "181", "182"]
+                df_oee_maq['maquina_clean'] = pd.Categorical(df_oee_maq['maquina_clean'], categories=preferred_order, ordered=True)
+                df_oee_maq = df_oee_maq.sort_values('maquina_clean')
+                
+                fig = px.bar(df_oee_maq, x='maquina', y='oee', title="OEE por Máquina", color_discrete_sequence=['#1a335f'], text_auto='.1%')
+                fig.update_traces(textposition='outside', textangle=0, cliponaxis=False)
+                fig.update_layout(yaxis_visible=False, xaxis_title=None, bargap=0.4, 
+                                  margin=dict(t=60, b=40, l=10, r=10), 
+                                  paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                                  font=dict(size=10, color='#1a335f'))
+                
+                img_bytes = pio.to_image(fig, format="png", width=450, height=300, scale=2)
+                img_path = f"temp_oee_maq_{datetime.datetime.now().timestamp()}.png"
+                with open(img_path, "wb") as f: f.write(img_bytes)
+                pdf.set_fill_color(248, 250, 253)
+                pdf.set_draw_color(230, 235, 245)
+                # W = (287 - 4) / 2 = 141.5 | Gap = 4mm | Y = 19
+                pdf.rounded_rect(5, 19, 141.5, 90, 2, 'FD')
+                pdf.image(img_path, x=5, y=19, w=141.5)
+                os.remove(img_path)
+
+                # 2. Horas em Produção por Máquina (Média Diária)
+                df_rep_hr = data_sources.get('df_rep', pd.DataFrame())
+                if df_rep_hr is not None and not df_rep_hr.empty:
+                    # Filtrar registros de "Produção" (case-insensitive)
+                    df_prod_state = df_rep_hr[df_rep_hr['registro'].astype(str).str.upper().str.strip() == "PRODUÇÃO"]
+                    if not df_prod_state.empty:
+                        # Somar segundos por dia e máquina, converter para horas
+                        df_daily_prod = df_prod_state.groupby(['maquina', 'data'])['tempo_segundos'].sum().reset_index()
+                        df_daily_prod['horas'] = df_daily_prod['tempo_segundos'] / 3600.0
+                        # Calcular a média das horas diárias por máquina
+                        df_hr_maq = df_daily_prod.groupby('maquina')['horas'].mean().reset_index()
+                    else:
+                        df_hr_maq = pd.DataFrame(columns=['maquina', 'horas'])
+                else:
+                    df_hr_maq = pd.DataFrame(columns=['maquina', 'horas'])
+
+                # Ordenação preferida
+                if not df_hr_maq.empty:
+                    df_hr_maq['maquina_clean'] = df_hr_maq['maquina'].str.split('-').str[0].str.strip()
+                    preferred_order = ["28", "29", "180", "181", "182"]
+                    df_hr_maq['maquina_clean'] = pd.Categorical(df_hr_maq['maquina_clean'], categories=preferred_order, ordered=True)
+                    df_hr_maq = df_hr_maq.sort_values('maquina_clean')
+                
+                fig = px.bar(df_hr_maq, x='maquina', y='horas', title="Média de Horas em Produção", color_discrete_sequence=['#00adef'], text_auto='.1f')
+                fig.update_traces(textposition='outside', textangle=0, cliponaxis=False)
+                fig.update_layout(yaxis_visible=False, xaxis_title=None, bargap=0.4,
+                                  margin=dict(t=60, b=40, l=10, r=10), 
+                                  paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                                  font=dict(size=10, color='#1a335f'))
+                
+                img_bytes = pio.to_image(fig, format="png", width=450, height=300, scale=2)
+                img_path = f"temp_hr_maq_{datetime.datetime.now().timestamp()}.png"
+                with open(img_path, "wb") as f: f.write(img_bytes)
+                pdf.set_fill_color(248, 250, 253)
+                pdf.set_draw_color(230, 235, 245)
+                # X=150.5 (5 + 141.5 + 4) | Y=19 | W=141.5 | H=90
+                pdf.rounded_rect(150.5, 19, 141.5, 90, 2, 'FD')
+                pdf.image(img_path, x=150.5, y=19, w=141.5)
+                os.remove(img_path)
+
+            # 3. Gráfico OEE por Operador
+            if df_oee is not None and not df_oee.empty and df_rep is not None and not df_rep.empty:
+                # Cruzamento de dados para obter operador no OEE
+                # df_rep tem a coluna 'operador' mapeada da producao.xlsx
+                df_op_map = df_rep[['maquina', 'data', 'hora', 'operador']].drop_duplicates(subset=['maquina', 'data', 'hora'])
+                df_oee_op = pd.merge(df_oee, df_op_map, on=['maquina', 'data', 'hora'], how='left')
+                
+                # Filtrar operadores nulos 
+                df_oee_op = df_oee_op[df_oee_op['operador'].notna()]
+                
+                # Padronizar para string e Uppercase para filtro infalível
+                df_oee_op['operador_upper'] = df_oee_op['operador'].astype(str).str.upper().str.strip()
+                
+                # Remover qualquer variação de Sem Operador ou código 0
+                # Checar tanto na versão limpa quanto na original
+                mask_remove = (
+                    df_oee_op['operador_upper'].str.contains("SEM OPERADOR", na=False) |
+                    df_oee_op['operador_upper'].str.startswith("0", na=False) |
+                    df_oee_op['operador'].astype(str).str.contains("SEM OPERADOR", case=False, na=False) |
+                    (df_oee_op['operador_upper'] == "0") |
+                    (df_oee_op['operador_upper'] == "0.0") |
+                    (df_oee_op['operador_upper'] == "NAN")
+                )
+                df_oee_op = df_oee_op[~mask_remove]
+                
+                # Garantir que o nome original não tenha espaços que enganem o GroupBy
+                df_oee_op['operador'] = df_oee_op['operador'].astype(str).str.strip()
+                
+                if not df_oee_op.empty:
+                    # Usar o nome original (df['operador']) para o gráfico, mas já filtrado
+                    df_oee_op_grp = df_oee_op.groupby('operador')['oee'].mean().reset_index()
+                    df_oee_op_grp = df_oee_op_grp.sort_values('oee', ascending=False)
+                    
+                    fig = px.bar(df_oee_op_grp, x='operador', y='oee', title="OEE por Operador", color_discrete_sequence=['#0ea38e'], text_auto='.1%')
+                    fig.update_traces(textposition='outside', textangle=0, cliponaxis=False)
+                    fig.update_layout(yaxis_visible=False, xaxis_title=None, bargap=0.5,
+                                      margin=dict(t=60, b=40, l=10, r=10), 
+                                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                                      font=dict(size=10, color='#1a335f'))
+                    
+                    img_bytes = pio.to_image(fig, format="png", width=900, height=300, scale=2)
+                    img_path = f"temp_oee_op_{datetime.datetime.now().timestamp()}.png"
+                    with open(img_path, "wb") as f: f.write(img_bytes)
+                    pdf.set_fill_color(248, 250, 253)
+                    pdf.set_draw_color(230, 235, 245)
+                    # X=5 | Y=113 (19 + 90 + 4) | W=287 | H=90
+                    pdf.rounded_rect(5, 113, 287, 90, 2, 'FD')
+                    pdf.image(img_path, x=5, y=113, w=287)
+                    os.remove(img_path)
+
             # Resetar Auto Page Break para elementos seguintes
             pdf.set_auto_page_break(auto=True, margin=15)
 
@@ -688,6 +844,7 @@ def create_pdf_report(selected_elements, data_sources, filters=None):
     if "Tabela: Detalhamento por Máquina" in selected_elements:
         df = data_sources.get('df_rep')
         if df is not None and not df.empty:
+            pdf.skip_footer = False
             pdf.add_page()
             pdf.set_font(pdf.custom_font, 'B', 18)
             pdf.set_text_color(26, 51, 95)
@@ -891,28 +1048,33 @@ def process_response(texto):
 @st.cache_data(ttl=600)
 def get_ink_data():
     try:
-        conn = sqlite3.connect('fichas_tecnicas.db')
-        # Tenta pegar coluna usd também, se não existir (v1 do banco) retorna só brl
+        # Usa o banco de configurações local
+        conn = sqlite3.connect('configuracoes.db')
+        # Tenta pegar coluna usd também
+        df = pd.read_sql_query("SELECT cor, preco_litro, preco_litro_usd FROM custos_tintas", conn)
+        conn.close()
+        return df.set_index('cor').to_dict('index')
+    except Exception as e:
+        # Tenta fallback para banco antigo ou padrões
         try:
-            df = pd.read_sql_query("SELECT cor, preco_litro, preco_litro_usd FROM custos_tintas", conn)
-        except:
+            conn = sqlite3.connect('fichas_tecnicas.db')
             df = pd.read_sql_query("SELECT cor, preco_litro FROM custos_tintas", conn)
             df['preco_litro_usd'] = 0.0
-            
-        return df.set_index('cor').to_dict('index')
-    except:
-        return {
-            'cyan': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
-            'magenta': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
-            'yellow': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
-            'black': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
-            'white': {'preco_litro': 300.0, 'preco_litro_usd': 55.0}, 
-            'varnish': {'preco_litro': 180.0, 'preco_litro_usd': 35.0}
-        }
+            conn.close()
+            return df.set_index('cor').to_dict('index')
+        except:
+            return {
+                'cyan': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+                'magenta': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+                'yellow': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+                'black': {'preco_litro': 250.0, 'preco_litro_usd': 45.0}, 
+                'white': {'preco_litro': 300.0, 'preco_litro_usd': 55.0}, 
+                'varnish': {'preco_litro': 180.0, 'preco_litro_usd': 35.0}
+            }
 
 def get_config(chave, default=0.0):
     try:
-        conn = sqlite3.connect('fichas_tecnicas.db')
+        conn = sqlite3.connect('configuracoes.db')
         cursor = conn.cursor()
         cursor.execute("SELECT valor FROM config_geral WHERE chave = ?", (chave,))
         row = cursor.fetchone()
@@ -1357,29 +1519,28 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
     flex-direction: row;
     justify-content: center !important;
     align-items: center;
-    gap: 2px !important;
-    row-gap: 10px !important;
+    gap: 10px !important;
+    row-gap: 15px !important;
     width: 100% !important;
-    max-width: 100vw !important;
     flex-wrap: wrap !important;
     background-color: transparent !important;
-    padding: 0 !important;
+    padding: 10px 0 !important;
     overflow: visible !important;
 }
 
 [data-testid="stRadio"] > div[role="radiogroup"] > label {
     background: transparent !important;
-    padding: 8px 3px !important;
+    padding: 8px 15px !important;
     cursor: pointer !important;
-    border-radius: 5px 5px 0 0 !important;
+    border-radius: 5px !important;
     transition: all 0.3s !important;
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 0 1 auto !important; /* Não força ocupar toda a largura, mantendo o bloco centralizado */
+    min-width: fit-content !important;
     text-align: center !important;
     justify-content: center !important;
     margin: 0 !important;
     border: none !important;
-    white-space: nowrap;
+    white-space: normal !important; /* Permite quebra de linha interna se o texto for muito longo */
     overflow: visible !important;
 }
 
@@ -1400,7 +1561,8 @@ div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
 /* --- RESPONSIVIDADE EXTREMA --- */
 @media (max-width: 768px) {
     [data-testid="stRadio"] > div[role="radiogroup"] > label {
-        padding: 5px 1px !important;
+        padding: 5px 8px !important;
+        flex: 1 1 auto !important; /* Em telas pequenas, pode ser melhor ocupar tudo */
     }
 }
 
@@ -2402,7 +2564,7 @@ with col_meio:
             st.markdown("---")
             if st.form_submit_button("💾 Salvar Configurações", use_container_width=True):
                 try:
-                    conn = sqlite3.connect('fichas_tecnicas.db')
+                    conn = sqlite3.connect('configuracoes.db')
                     cursor = conn.cursor()
                     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
